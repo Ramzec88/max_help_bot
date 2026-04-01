@@ -45,13 +45,32 @@ async function registerWebhook() {
 
 async function init() {
   // Resolve admin group chat link → numeric chat_id
-  try {
-    const chatInfo = await bot.api.getChatByLink(ADMIN_CHAT_LINK);
-    adminChatId = chatInfo.chat_id;
-    console.log('Чат с админами:', adminChatId);
-  } catch (err) {
-    console.error('Не удалось получить чат по ссылке ADMIN_CHAT_LINK:', err.message);
-    process.exit(1);
+  // Accept full URL (https://max.ru/join/TOKEN) or just the token
+  const linkToken = ADMIN_CHAT_LINK
+    ? ADMIN_CHAT_LINK.replace(/^https?:\/\/[^/]+\/join\//, '').trim()
+    : '';
+
+  if (!linkToken) {
+    console.error('ADMIN_CHAT_LINK не задан. Укажите ссылку-приглашение группы.');
+    return;
+  }
+
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      const chatInfo = await bot.api.getChatByLink(linkToken);
+      adminChatId = chatInfo.chat_id;
+      console.log('Чат с админами:', adminChatId);
+      break;
+    } catch (err) {
+      retries--;
+      console.error(`Не удалось получить чат (осталось попыток: ${retries}):`, err.message);
+      if (retries === 0) {
+        console.error('Инициализация не удалась. Бот не будет обрабатывать сообщения.');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
   }
 
   // Register middleware (after adminChatId is known)
