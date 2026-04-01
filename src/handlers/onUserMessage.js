@@ -2,23 +2,37 @@ const { Keyboard } = require('@maxhub/max-bot-api');
 const ai = require('../services/ai');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
+const { extractMediaAttachments, describeAttachments } = require('../services/media');
 
 async function onUserMessage(ctx, adminChatId) {
   const userId = String(ctx.user.user_id);
   const chatId = String(ctx.chatId);
   const userName = ctx.user.name || `Пользователь ${userId}`;
-  const text = ctx.message?.body?.text;
+  const text = ctx.message?.body?.text || '';
+  const mediaAttachments = extractMediaAttachments(ctx.message);
 
-  if (!text) return;
+  // Игнорировать пустые сообщения без текста и медиа
+  if (!text && mediaAttachments.length === 0) return;
 
   // Подтверждение пользователю
   await ctx.reply('⏳ Ваш вопрос принят! Скоро ответим.');
 
-  // AI-варианты
-  const { variants, label } = await ai.generateVariants(text);
+  // Для AI используем текст, либо описание медиа если текста нет
+  const questionText = text || describeAttachments(mediaAttachments);
 
-  // Сохранить диалог
-  store.saveDialog(userId, { chatId, userName, text, variants, label, status: 'open' });
+  // AI-варианты
+  const { variants, label } = await ai.generateVariants(questionText);
+
+  // Сохранить диалог (text хранит оригинальный текст или описание медиа)
+  store.saveDialog(userId, { chatId, userName, text: questionText, variants, label, status: 'open' });
+
+  // Если есть медиа — переслать в чат с админами отдельным сообщением перед карточкой
+  if (mediaAttachments.length > 0) {
+    const caption = text ? `👤 ${userName}: ${text}` : `👤 ${userName}`;
+    await ctx.api.sendMessageToChat(adminChatId, caption, {
+      attachments: mediaAttachments,
+    });
+  }
 
   // Кнопки для карточки
   const buttons = [
@@ -26,14 +40,13 @@ async function onUserMessage(ctx, adminChatId) {
     [Keyboard.button.callback('✍️ Свой ответ', `custom:${userId}`)],
   ];
 
-  const adminText = formatter.buildAdminMessage({ userName, text, variants, label });
+  const adminText = formatter.buildAdminMessage({ userName, text: questionText, variants, label });
 
-  // Отправить карточку в чат с админами
+  // Отправить карточку с кнопками в чат с админами
   const sentMsg = await ctx.api.sendMessageToChat(adminChatId, adminText, {
     attachments: [Keyboard.inlineKeyboard(buttons)],
   });
 
-  // Сохранить ID сообщения для последующего редактирования
   if (sentMsg?.body?.mid) {
     store.saveDialog(userId, { adminMsgId: sentMsg.body.mid });
   }
