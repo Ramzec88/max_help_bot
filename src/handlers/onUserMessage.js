@@ -26,7 +26,7 @@ async function onUserMessage(ctx, adminChatId) {
     [Keyboard.button.callback('✍️ Свой ответ', `custom:${userId}`)],
   ];
 
-  const adminText = formatter.buildAdminMessage({ userId, userName, text, variants, label });
+  const adminText = formatter.buildAdminMessage({ userName, text, variants, label });
 
   // Отправить карточку в чат с админами
   const sentMsg = await ctx.api.sendMessageToChat(adminChatId, adminText, {
