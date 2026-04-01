@@ -10,7 +10,21 @@ const onAdminReply = require('./handlers/onAdminReply');
 const app = express();
 app.use(express.json());
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+// adminChatId resolved after startup; webhook updates are queued until ready
+let adminChatId = null;
+let ready = false;
+
+app.get('/health', (_req, res) => res.json({ status: 'ok', ready }));
+
+app.post('/webhook', async (req, res) => {
+  res.sendStatus(200);
+  if (!ready) return; // drop updates received before init completes
+  try {
+    await bot.handleUpdate(req.body);
+  } catch (err) {
+    console.error('handleUpdate error:', err.message);
+  }
+});
 
 async function registerWebhook() {
   if (!WEBHOOK_URL) {
@@ -29,19 +43,18 @@ async function registerWebhook() {
   }
 }
 
-async function main() {
-  // Resolve group chat link → numeric chat_id
-  let adminChatId;
+async function init() {
+  // Resolve admin group chat link → numeric chat_id
   try {
     const chatInfo = await bot.api.getChatByLink(ADMIN_CHAT_LINK);
     adminChatId = chatInfo.chat_id;
     console.log('Чат с админами:', adminChatId);
   } catch (err) {
-    console.error('Не удалось получить чат по ссылке:', err.message);
+    console.error('Не удалось получить чат по ссылке ADMIN_CHAT_LINK:', err.message);
     process.exit(1);
   }
 
-  // Register middleware
+  // Register middleware (after adminChatId is known)
   bot.on('message_callback', async (ctx) => {
     try {
       await onAdminCallback(ctx, adminChatId);
@@ -63,20 +76,14 @@ async function main() {
     }
   });
 
-  // Webhook endpoint
-  app.post('/webhook', async (req, res) => {
-    res.sendStatus(200);
-    try {
-      await bot.handleUpdate(req.body);
-    } catch (err) {
-      console.error('handleUpdate error:', err.message);
-    }
-  });
-
-  app.listen(PORT, async () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
-    await registerWebhook();
-  });
+  await registerWebhook();
+  ready = true;
+  console.log('Бот готов к работе');
 }
 
-main();
+// Start HTTP server immediately so Railway healthcheck passes,
+// then run async init in the background
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на порту ${PORT}`);
+  init();
+});
