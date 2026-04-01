@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const bot = require('./bot');
-const { PORT, BOT_TOKEN, WEBHOOK_URL, ADMIN_CHAT_LINK } = require('./config');
+const { PORT, BOT_TOKEN, WEBHOOK_URL, ADMIN_CHAT_ID } = require('./config');
 const onUserMessage = require('./handlers/onUserMessage');
 const onAdminCallback = require('./handlers/onAdminCallback');
 const onAdminReply = require('./handlers/onAdminReply');
@@ -10,15 +10,13 @@ const onAdminReply = require('./handlers/onAdminReply');
 const app = express();
 app.use(express.json());
 
-// adminChatId resolved after startup; webhook updates are queued until ready
-let adminChatId = null;
 let ready = false;
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ready }));
 
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
-  if (!ready) return; // drop updates received before init completes
+  if (!ready) return;
   try {
     await bot.handleUpdate(req.body);
   } catch (err) {
@@ -44,36 +42,14 @@ async function registerWebhook() {
 }
 
 async function init() {
-  // Resolve admin group chat link → numeric chat_id
-  // Accept full URL (https://max.ru/join/TOKEN) or just the token
-  const linkToken = ADMIN_CHAT_LINK
-    ? ADMIN_CHAT_LINK.replace(/^https?:\/\/[^/]+\/join\//, '').trim()
-    : '';
-
-  if (!linkToken) {
-    console.error('ADMIN_CHAT_LINK не задан. Укажите ссылку-приглашение группы.');
+  if (!ADMIN_CHAT_ID) {
+    console.error('ADMIN_CHAT_ID не задан в переменных окружения.');
     return;
   }
 
-  let retries = 5;
-  while (retries > 0) {
-    try {
-      const chatInfo = await bot.api.getChatByLink(linkToken);
-      adminChatId = chatInfo.chat_id;
-      console.log('Чат с админами:', adminChatId);
-      break;
-    } catch (err) {
-      retries--;
-      console.error(`Не удалось получить чат (осталось попыток: ${retries}):`, err.message);
-      if (retries === 0) {
-        console.error('Инициализация не удалась. Бот не будет обрабатывать сообщения.');
-        return;
-      }
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-  }
+  const adminChatId = Number(ADMIN_CHAT_ID);
+  console.log('Чат с админами:', adminChatId);
 
-  // Register middleware (after adminChatId is known)
   bot.on('message_callback', async (ctx) => {
     try {
       await onAdminCallback(ctx, adminChatId);
@@ -100,8 +76,6 @@ async function init() {
   console.log('Бот готов к работе');
 }
 
-// Start HTTP server immediately so Railway healthcheck passes,
-// then run async init in the background
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
   init();
