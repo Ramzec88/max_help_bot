@@ -1,13 +1,11 @@
-const bot = require('../bot');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
-const { ADMIN_CHAT_ID } = require('../config');
 
-async function onAdminCallback(update) {
-  const payload = update.callback.payload;
-  const adminId = String(update.callback.user.user_id);
-
+async function onAdminCallback(ctx, adminChatId) {
+  const payload = ctx.callback?.payload;
   if (!payload) return;
+
+  const adminId = String(ctx.callback.user.user_id);
 
   if (payload.startsWith('reply:')) {
     const [, userId, idxStr] = payload.split(':');
@@ -15,23 +13,22 @@ async function onAdminCallback(update) {
     const dialog = store.getDialog(userId);
 
     if (!dialog) {
-      await bot.answerCallback(update.callback.callback_id, { notification: 'Диалог не найден.' });
+      await ctx.answerOnCallback({ notification: 'Диалог не найден.' });
       return;
     }
-
     if (dialog.status === 'answered') {
-      await bot.answerCallback(update.callback.callback_id, { notification: 'Ответ уже был отправлен.' });
+      await ctx.answerOnCallback({ notification: 'Ответ уже был отправлен.' });
       return;
     }
 
     const replyText = dialog.variants[idx];
     if (!replyText) return;
 
-    // Пометить как отвеченный сразу (защита от двойного нажатия)
+    // Блокируем сразу (защита от двойного нажатия)
     store.saveDialog(userId, { status: 'answered' });
 
     // Отправить ответ пользователю
-    await bot.sendMessage(dialog.chatId, { text: replyText });
+    await ctx.api.sendMessageToChat(dialog.chatId, replyText);
 
     // Обновить карточку в чате с админами
     const updatedText = formatter.buildAnsweredMessage({
@@ -42,13 +39,10 @@ async function onAdminCallback(update) {
     });
 
     if (dialog.adminMsgId) {
-      await bot.editMessage(dialog.adminMsgId, {
-        text: updatedText,
-        attachments: [],
-      });
+      await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [] });
     }
 
-    await bot.answerCallback(update.callback.callback_id, { notification: '✅ Ответ отправлен!' });
+    await ctx.answerOnCallback({ notification: '✅ Ответ отправлен!' });
   }
 
   if (payload.startsWith('custom:')) {
@@ -56,22 +50,22 @@ async function onAdminCallback(update) {
     const dialog = store.getDialog(userId);
 
     if (!dialog) {
-      await bot.answerCallback(update.callback.callback_id, { notification: 'Диалог не найден.' });
+      await ctx.answerOnCallback({ notification: 'Диалог не найден.' });
       return;
     }
-
     if (dialog.status === 'answered') {
-      await bot.answerCallback(update.callback.callback_id, { notification: 'Ответ уже был отправлен.' });
+      await ctx.answerOnCallback({ notification: 'Ответ уже был отправлен.' });
       return;
     }
 
     store.setAdminMode(adminId, { mode: 'awaiting_reply', targetUserId: userId });
 
-    await bot.sendMessage(ADMIN_CHAT_ID, {
-      text: `✍️ @${adminId}, напишите ответ для пользователя **${dialog.userName}** следующим сообщением:`,
-    });
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `✍️ Напишите ответ для пользователя **${dialog.userName}** следующим сообщением:`
+    );
 
-    await bot.answerCallback(update.callback.callback_id, { notification: 'Напишите ответ в чат.' });
+    await ctx.answerOnCallback({ notification: 'Напишите ответ в чат.' });
   }
 }
 

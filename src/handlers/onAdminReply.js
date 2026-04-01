@@ -1,11 +1,9 @@
-const bot = require('../bot');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
-const { ADMIN_CHAT_ID } = require('../config');
 
-async function onAdminReply(update) {
-  const adminId = String(update.message.sender.user_id);
-  const replyText = update.message.body.text;
+async function onAdminReply(ctx, adminChatId) {
+  const adminId = String(ctx.user.user_id);
+  const replyText = ctx.message?.body?.text;
 
   if (!replyText) return;
 
@@ -22,7 +20,7 @@ async function onAdminReply(update) {
 
   if (dialog.status === 'answered') {
     store.clearAdminMode(adminId);
-    await bot.sendMessage(ADMIN_CHAT_ID, { text: '⚠️ Этот диалог уже закрыт.' });
+    await ctx.api.sendMessageToChat(adminChatId, '⚠️ Этот диалог уже закрыт.');
     return;
   }
 
@@ -31,9 +29,9 @@ async function onAdminReply(update) {
   store.clearAdminMode(adminId);
 
   // Отправить ответ пользователю
-  await bot.sendMessage(dialog.chatId, { text: replyText });
+  await ctx.api.sendMessageToChat(dialog.chatId, replyText);
 
-  // Обновить карточку в чате с админами
+  // Обновить карточку
   const updatedText = formatter.buildAnsweredMessage({
     userName: dialog.userName,
     text: dialog.text,
@@ -42,13 +40,10 @@ async function onAdminReply(update) {
   });
 
   if (dialog.adminMsgId) {
-    await bot.editMessage(dialog.adminMsgId, {
-      text: updatedText,
-      attachments: [],
-    });
+    await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [] });
   }
 
-  await bot.sendMessage(ADMIN_CHAT_ID, { text: '✅ Ответ отправлен пользователю.' });
+  await ctx.api.sendMessageToChat(adminChatId, '✅ Ответ отправлен пользователю.');
 }
 
 module.exports = onAdminReply;

@@ -1,21 +1,18 @@
-const bot = require('../bot');
+const { Keyboard } = require('@maxhub/max-bot-api');
 const ai = require('../services/ai');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
-const { ADMIN_CHAT_ID } = require('../config');
 
-async function onUserMessage(update) {
-  const userId = String(update.sender.user_id);
-  const chatId = String(update.message.recipient.chat_id);
-  const userName = update.sender.name || `Пользователь ${userId}`;
-  const text = update.message.body.text;
+async function onUserMessage(ctx, adminChatId) {
+  const userId = String(ctx.user.user_id);
+  const chatId = String(ctx.chatId);
+  const userName = ctx.user.name || `Пользователь ${userId}`;
+  const text = ctx.message?.body?.text;
 
   if (!text) return;
 
   // Подтверждение пользователю
-  await bot.sendMessage(chatId, {
-    text: '⏳ Ваш вопрос принят! Скоро ответим.',
-  });
+  await ctx.reply('⏳ Ваш вопрос принят! Скоро ответим.');
 
   // AI-варианты
   const { variants, label } = await ai.generateVariants(text);
@@ -23,28 +20,22 @@ async function onUserMessage(update) {
   // Сохранить диалог
   store.saveDialog(userId, { chatId, userName, text, variants, label, status: 'open' });
 
+  // Кнопки для карточки
+  const buttons = [
+    variants.map((_, i) => Keyboard.button.callback(`Вариант ${i + 1}`, `reply:${userId}:${i}`)),
+    [Keyboard.button.callback('✍️ Свой ответ', `custom:${userId}`)],
+  ];
+
+  const adminText = formatter.buildAdminMessage({ userId, userName, text, variants, label });
+
   // Отправить карточку в чат с админами
-  const { text: adminText, buttons } = formatter.buildAdminMessage({
-    userId,
-    userName,
-    text,
-    variants,
-    label,
+  const sentMsg = await ctx.api.sendMessageToChat(adminChatId, adminText, {
+    attachments: [Keyboard.inlineKeyboard(buttons)],
   });
 
-  const sentMsg = await bot.sendMessage(ADMIN_CHAT_ID, {
-    text: adminText,
-    attachments: [
-      {
-        type: 'inline_keyboard',
-        payload: { buttons },
-      },
-    ],
-  });
-
-  // Сохранить ID сообщения в чате с админами для последующего редактирования
-  if (sentMsg && sentMsg.message && sentMsg.message.body) {
-    store.saveDialog(userId, { adminMsgId: sentMsg.message.body.mid });
+  // Сохранить ID сообщения для последующего редактирования
+  if (sentMsg?.body?.mid) {
+    store.saveDialog(userId, { adminMsgId: sentMsg.body.mid });
   }
 }
 

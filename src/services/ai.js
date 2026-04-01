@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { OPENROUTER_API_KEY } = require('../config');
+const { OPENROUTER_API_KEY, OPENROUTER_MODEL } = require('../config');
 
 const FALLBACK_VARIANTS = [
   'Здравствуйте! Спасибо за ваш вопрос. Мы разберёмся и ответим вам в ближайшее время.',
@@ -17,7 +17,7 @@ async function callLLM(prompt) {
   const response = await axios.post(
     'https://openrouter.ai/api/v1/chat/completions',
     {
-      model: 'anthropic/claude-haiku-4-5',
+      model: OPENROUTER_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
     },

@@ -1,6 +1,6 @@
-const { TamTamBotAPI } = require('@maxhub/max-bot-api');
+const { Bot } = require('@maxhub/max-bot-api');
 const { BOT_TOKEN } = require('./config');
 
-const bot = new TamTamBotAPI(BOT_TOKEN);
+const bot = new Bot(BOT_TOKEN);
 
 module.exports = bot;
