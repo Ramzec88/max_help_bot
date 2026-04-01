@@ -33,13 +33,14 @@ async function onAdminCallback(ctx, adminChatId) {
     // Обновить карточку в чате с админами
     const updatedText = formatter.buildAnsweredMessage({
       userName: dialog.userName,
+      username: dialog.username,
       text: dialog.text,
       replyText,
       label: dialog.label || '🟡',
     });
 
     if (dialog.adminMsgId) {
-      await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [] });
+      await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [], format: 'markdown' });
     }
 
     await ctx.answerOnCallback({ notification: '✅ Ответ отправлен!' });

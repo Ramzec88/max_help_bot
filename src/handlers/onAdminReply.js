@@ -46,13 +46,14 @@ async function onAdminReply(ctx, adminChatId) {
   const displayReply = replyText || '[медиафайл]';
   const updatedText = formatter.buildAnsweredMessage({
     userName: dialog.userName,
+    username: dialog.username,
     text: dialog.text,
     replyText: displayReply,
     label: dialog.label || '🟡',
   });
 
   if (dialog.adminMsgId) {
-    await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [] });
+    await ctx.api.editMessage(dialog.adminMsgId, { text: updatedText, attachments: [], format: 'markdown' });
   }
 
   await ctx.api.sendMessageToChat(adminChatId, '✅ Ответ отправлен пользователю.');

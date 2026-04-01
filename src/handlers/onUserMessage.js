@@ -8,6 +8,7 @@ async function onUserMessage(ctx, adminChatId) {
   const userId = String(ctx.user.user_id);
   const chatId = String(ctx.chatId);
   const userName = ctx.user.name || `Пользователь ${userId}`;
+  const username = ctx.user.username || null;
   const text = ctx.message?.body?.text || '';
   const mediaAttachments = extractMediaAttachments(ctx.message);
 
@@ -24,7 +25,7 @@ async function onUserMessage(ctx, adminChatId) {
   const { variants, label } = await ai.generateVariants(questionText);
 
   // Сохранить диалог (text хранит оригинальный текст или описание медиа)
-  store.saveDialog(userId, { chatId, userName, text: questionText, variants, label, status: 'open' });
+  store.saveDialog(userId, { chatId, userName, username, text: questionText, variants, label, status: 'open' });
 
   // Если есть медиа — переслать в чат с админами отдельным сообщением перед карточкой
   if (mediaAttachments.length > 0) {
@@ -40,11 +41,12 @@ async function onUserMessage(ctx, adminChatId) {
     [Keyboard.button.callback('✍️ Свой ответ', `custom:${userId}`)],
   ];
 
-  const adminText = formatter.buildAdminMessage({ userName, text: questionText, variants, label });
+  const adminText = formatter.buildAdminMessage({ userName, username, text: questionText, variants, label });
 
   // Отправить карточку с кнопками в чат с админами
   const sentMsg = await ctx.api.sendMessageToChat(adminChatId, adminText, {
     attachments: [Keyboard.inlineKeyboard(buttons)],
+    format: 'markdown',
   });
 
   if (sentMsg?.body?.mid) {
