@@ -34,6 +34,7 @@ async function onAdminCallback(ctx, adminChatId) {
     const updatedText = formatter.buildAnsweredMessage({
       userName: dialog.userName,
       username: dialog.username,
+      userId: dialog.userId,
       text: dialog.text,
       replyText,
       label: dialog.label || '🟡',

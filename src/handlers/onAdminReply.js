@@ -47,6 +47,7 @@ async function onAdminReply(ctx, adminChatId) {
   const updatedText = formatter.buildAnsweredMessage({
     userName: dialog.userName,
     username: dialog.username,
+    userId: dialog.userId,
     text: dialog.text,
     replyText: displayReply,
     label: dialog.label || '🟡',
