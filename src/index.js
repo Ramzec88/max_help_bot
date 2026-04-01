@@ -31,8 +31,9 @@ async function registerWebhook() {
   }
   try {
     await axios.post(
-      `https://botapi.max.ru/subscriptions?access_token=${BOT_TOKEN}`,
-      { url: WEBHOOK_URL, update_types: ['message_created', 'message_callback'] }
+      'https://botapi.max.ru/subscriptions',
+      { url: WEBHOOK_URL, update_types: ['message_created', 'message_callback'] },
+      { headers: { Authorization: `Bearer ${BOT_TOKEN}` } }
     );
     console.log('Webhook зарегистрирован:', WEBHOOK_URL);
   } catch (err) {
