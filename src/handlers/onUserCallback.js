@@ -138,7 +138,7 @@ async function onUserCallback(ctx, adminChatId) {
       await store.updateTicket(ticketId, { rating: 'positive', status: 'answered' });
       store.resetUserState(userId);
       await ctx.answerOnCallback({ notification: '👍 Спасибо за оценку!' });
-      await ctx.reply('Рады помочь! Если появятся вопросы — пишите 🐻');
+      await ctx.reply('Рады помочь! Если появятся новые вопросы — напишите сюда или нажмите /start для выбора темы 🐻');
 
       if (ticket.admin_msg_id) {
         const updText = formatter.buildResolvedCard(ticket) + '\n\n✅ Пользователь подтвердил решение';
