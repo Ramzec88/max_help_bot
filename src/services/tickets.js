@@ -1,9 +1,7 @@
-// Helper: create ticket, generate AI variants, send card to admin chat
 const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('./store');
 const ai = require('./ai');
 const formatter = require('./formatter');
-const { extractMediaAttachments } = require('./media');
 
 async function openTicket(ctx, adminChatId, { topic, platform, context, question, mediaAttachments }) {
   const userId = String(ctx.user.user_id);
@@ -18,9 +16,9 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   }
 
   // Check for existing open ticket → add message instead
-  const existing = store.getOpenTicketByUserId(userId);
+  const existing = await store.getOpenTicketByUserId(userId);
   if (existing) {
-    store.addMessageToTicket(existing.ticket_id, question);
+    await store.addMessageToTicket(existing.ticket_id, question);
 
     if (mediaAttachments?.length > 0) {
       await ctx.api.sendMessageToChat(adminChatId, `👤 ${userName}: ${question || ''}`, {
@@ -38,10 +36,10 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   const { variants, label } = await ai.generateVariants(question, { topic, platform });
 
   // Create ticket in store
-  const ticket = store.createTicket({
+  const ticket = await store.createTicket({
     user_id: userId, chat_id: chatId, user_name: userName, username,
     topic, platform: platform || 'unknown', context: context || {},
-    messages: [question], last_question: question,
+    last_question: question,
     ai_variants: variants, label,
   });
 
@@ -65,11 +63,10 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   });
 
   if (sentMsg?.body?.mid) {
-    store.updateTicket(ticket.ticket_id, { admin_msg_id: sentMsg.body.mid });
+    await store.updateTicket(ticket.ticket_id, { admin_msg_id: sentMsg.body.mid });
   }
 
-  store.setUserState(userId, 'ticket_open');
-  store.resetUserState(userId); // clear FAQ context, set to ticket_open
+  store.resetUserState(userId);
   store.setUserState(userId, 'ticket_open');
 
   return ticket;

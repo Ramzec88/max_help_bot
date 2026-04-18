@@ -10,7 +10,8 @@
     "@maxhub/max-bot-api": "0.2.2",
     "axios": "^1.7.0",
     "dotenv": "^16.4.0",
-    "express": "^4.19.0"
+    "express": "^4.19.0",
+    "@supabase/supabase-js": "^2.43.0"
   },
   "engines": {
     "node": ">=20"

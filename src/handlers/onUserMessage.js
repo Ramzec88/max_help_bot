@@ -10,20 +10,17 @@ async function onUserMessage(ctx, adminChatId) {
   const text = ctx.message?.body?.text || '';
   const mediaAttachments = extractMediaAttachments(ctx.message);
 
-  // /start command
   if (text === '/start') {
     await handleStart(ctx);
     return;
   }
 
-  // Ignore empty messages with no media
   if (!text && mediaAttachments.length === 0) return;
 
   const { state, context } = store.getUserState(userId);
 
   switch (state) {
     case 'awaiting_ticket': {
-      // User typed their issue description after a FAQ branch collected context
       const question = text || '[медиафайл]';
       await openTicket(ctx, adminChatId, {
         topic: context.topic || 'other',
@@ -36,15 +33,13 @@ async function onUserMessage(ctx, adminChatId) {
     }
 
     case 'ticket_open': {
-      // Add follow-up message to existing open ticket
-      const ticket = store.getOpenTicketByUserId(userId);
+      const ticket = await store.getOpenTicketByUserId(userId);
       if (!ticket) {
-        // Ticket was closed; treat as new question
         await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
         return;
       }
       const question = text || '[медиафайл]';
-      store.addMessageToTicket(ticket.ticket_id, question);
+      await store.addMessageToTicket(ticket.ticket_id, question);
 
       if (mediaAttachments.length > 0) {
         await ctx.api.sendMessageToChat(adminChatId, `👤 ${ticket.user_name}: ${text || ''}`, {
@@ -62,12 +57,10 @@ async function onUserMessage(ctx, adminChatId) {
     }
 
     case 'rating_pending':
-      // User wrote text instead of pressing rating — open a new ticket
       await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
       break;
 
     default:
-      // idle or any unrecognised state
       await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
       break;
   }

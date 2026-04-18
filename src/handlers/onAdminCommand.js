@@ -44,7 +44,7 @@ async function onAdminCommand(ctx, adminChatId) {
       return;
     }
 
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
     if (!ticket) {
       await ctx.api.sendMessageToChat(adminChatId, `⚠️ Тикет #${ticketId} не найден.`);
       return;
@@ -54,8 +54,7 @@ async function onAdminCommand(ctx, adminChatId) {
       return;
     }
 
-    store.updateTicket(ticketId, { status: 'answered' });
-
+    await store.updateTicket(ticketId, { status: 'answered' });
     await ctx.api.sendMessageToChat(ticket.chat_id, replyText);
 
     const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticketId);
@@ -64,7 +63,7 @@ async function onAdminCommand(ctx, adminChatId) {
     });
     store.setUserState(ticket.user_id, 'rating_pending');
 
-    store.closeTicket(ticketId);
+    await store.closeTicket(ticketId);
 
     if (ticket.admin_msg_id) {
       const updatedText = formatter.buildAnsweredCard(ticket, replyText);
@@ -86,7 +85,7 @@ async function onAdminCommand(ctx, adminChatId) {
       return;
     }
 
-    const ticket = store.getOpenTicketByUserId(targetUserId);
+    const ticket = await store.getOpenTicketByUserId(targetUserId);
     if (!ticket) {
       await ctx.api.sendMessageToChat(adminChatId, `⚠️ Активный тикет для пользователя ${targetUserId} не найден.`);
       return;

@@ -7,6 +7,8 @@ module.exports = {
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'anthropic/claude-haiku-4-5',
   WEBHOOK_URL: process.env.WEBHOOK_URL,
   PORT: process.env.PORT || 3000,
+  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   // FAQ content links
   BOOSTY_URL: process.env.BOOSTY_URL || 'https://boosty.to/mishka_max',
   LAVA_TOP_URL: process.env.LAVA_TOP_URL || 'https://lava.top/mishka_max',

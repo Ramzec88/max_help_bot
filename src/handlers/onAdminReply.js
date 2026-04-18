@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function onAdminReply(ctx, adminChatId) {
   const adminId = String(ctx.user.user_id);
-  const adminMode = store.getAdminMode(adminId);
+  const adminMode = await store.getAdminMode(adminId);
   if (!adminMode || adminMode.mode !== 'awaiting_reply') return;
 
   const replyText = ctx.message?.body?.text || '';
@@ -17,15 +17,15 @@ async function onAdminReply(ctx, adminChatId) {
   if (!replyText && mediaAttachments.length === 0) return;
 
   const { targetTicketId } = adminMode;
-  const ticket = store.getTicket(targetTicketId);
+  const ticket = await store.getTicket(targetTicketId);
 
   if (!ticket) {
-    store.clearAdminMode(adminId);
+    await store.clearAdminMode(adminId);
     return;
   }
 
   if (ticket.status === 'answered') {
-    store.clearAdminMode(adminId);
+    await store.clearAdminMode(adminId);
     await ctx.api.sendMessageToChat(adminChatId, '⚠️ Этот тикет уже закрыт.');
     return;
   }
@@ -47,16 +47,16 @@ async function onAdminReply(ctx, adminChatId) {
 }
 
 async function finishCustomReply(adminId, adminChatId, api) {
-  const adminMode = store.getAdminMode(adminId);
+  const adminMode = await store.getAdminMode(adminId);
   if (!adminMode) return;
 
-  const ticket = store.getTicket(adminMode.targetTicketId);
-  store.clearAdminMode(adminId);
+  const ticket = await store.getTicket(adminMode.targetTicketId);
+  await store.clearAdminMode(adminId);
 
   if (!ticket || ticket.status === 'answered') return;
 
-  store.updateTicket(ticket.ticket_id, { status: 'answered' });
-  store.closeTicket(ticket.ticket_id);
+  await store.updateTicket(ticket.ticket_id, { status: 'answered' });
+  await store.closeTicket(ticket.ticket_id);
 
   // Send rating request to user
   const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);

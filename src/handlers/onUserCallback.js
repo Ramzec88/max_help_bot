@@ -125,9 +125,9 @@ async function onUserCallback(ctx, adminChatId) {
 
   if (payload.startsWith('rating:')) {
     const parts = payload.split(':');
-    const vote = parts[1];       // positive | negative
+    const vote = parts[1];
     const ticketId = Number(parts[2]);
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
 
     if (!ticket) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
@@ -135,27 +135,22 @@ async function onUserCallback(ctx, adminChatId) {
     }
 
     if (vote === 'positive') {
-      store.updateTicket(ticketId, { rating: 'positive', status: 'answered' });
+      await store.updateTicket(ticketId, { rating: 'positive', status: 'answered' });
       store.resetUserState(userId);
       await ctx.answerOnCallback({ notification: '👍 Спасибо за оценку!' });
       await ctx.reply('Рады помочь! Если появятся вопросы — пишите 🐻');
 
-      // Notify admin
       if (ticket.admin_msg_id) {
         const updText = formatter.buildResolvedCard(ticket) + '\n\n✅ Пользователь подтвердил решение';
         await ctx.api.editMessage(ticket.admin_msg_id, { text: updText, attachments: [], format: 'markdown' });
       }
     } else {
-      store.updateTicket(ticketId, { rating: 'negative', status: 'open' });
+      await store.updateTicket(ticketId, { rating: 'negative', status: 'open' });
       store.setUserState(userId, 'ticket_open');
-      // Restore in active tickets
-      const { userActiveTicket } = require('../services/store');
-      store.updateTicket(ticketId, {});
 
       await ctx.answerOnCallback({ notification: '👎 Поняли, работаем!' });
       await ctx.reply('Поняли — передаём оператору, разберёмся 🐻');
 
-      // Notify admin
       await ctx.api.sendMessageToChat(
         adminChatId,
         `🔄 Тикет #${ticketId} — пользователь ${ticket.user_name} отметил, что вопрос не решён`

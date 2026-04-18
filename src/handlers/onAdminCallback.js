@@ -16,7 +16,7 @@ async function onAdminCallback(ctx, adminChatId) {
     const [, ticketIdStr, idxStr] = payload.split(':');
     const ticketId = Number(ticketIdStr);
     const idx = parseInt(idxStr, 10);
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
 
     if (!ticket) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
@@ -31,7 +31,7 @@ async function onAdminCallback(ctx, adminChatId) {
     if (!replyText) return;
 
     // Lock immediately (double-press protection)
-    store.updateTicket(ticketId, { status: 'answered' });
+    await store.updateTicket(ticketId, { status: 'answered' });
 
     // Remove buttons from card immediately
     if (ticket.admin_msg_id) {
@@ -62,7 +62,7 @@ async function onAdminCallback(ctx, adminChatId) {
 
   if (payload.startsWith('custom:')) {
     const ticketId = Number(payload.split(':')[1]);
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
 
     if (!ticket) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
@@ -80,9 +80,9 @@ async function onAdminCallback(ctx, adminChatId) {
 
     // Set admin mode with 10-min auto-timeout
     const timeoutHandle = setTimeout(async () => {
-      const mode = store.getAdminMode(adminId);
+      const mode = await store.getAdminMode(adminId);
       if (mode?.targetTicketId === ticketId) {
-        store.clearAdminMode(adminId);
+        await store.clearAdminMode(adminId);
         await ctx.api.sendMessageToChat(
           adminChatId,
           `⏱️ Режим свободного ответа для тикета #${ticketId} завершён автоматически (10 мин)`
@@ -90,7 +90,7 @@ async function onAdminCallback(ctx, adminChatId) {
       }
     }, CUSTOM_REPLY_TIMEOUT_MS);
 
-    store.setAdminMode(adminId, { mode: 'awaiting_reply', targetTicketId: ticketId, timeoutHandle });
+    await store.setAdminMode(adminId, { mode: 'awaiting_reply', targetTicketId: ticketId, timeoutHandle });
 
     await ctx.api.sendMessageToChat(
       adminChatId,
@@ -107,7 +107,7 @@ async function onAdminCallback(ctx, adminChatId) {
 
   if (payload.startsWith('ticket:resolve:')) {
     const ticketId = Number(payload.split(':')[2]);
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
 
     if (!ticket) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
@@ -118,7 +118,7 @@ async function onAdminCallback(ctx, adminChatId) {
       return;
     }
 
-    store.closeTicket(ticketId);
+    await store.closeTicket(ticketId);
 
     if (ticket.admin_msg_id) {
       const updatedText = formatter.buildResolvedCard(ticket);
@@ -133,7 +133,7 @@ async function onAdminCallback(ctx, adminChatId) {
 
   if (payload.startsWith('ticket:return:')) {
     const ticketId = Number(payload.split(':')[2]);
-    const ticket = store.getTicket(ticketId);
+    const ticket = await store.getTicket(ticketId);
 
     if (!ticket) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
@@ -144,13 +144,11 @@ async function onAdminCallback(ctx, adminChatId) {
       return;
     }
 
-    // Remove buttons (keep ticket open)
     if (ticket.admin_msg_id) {
       const updatedText = formatter.buildReturnedCard(ticket);
       await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
     }
 
-    // Notify user
     await ctx.api.sendMessageToChat(
       ticket.chat_id,
       '🐻 Мы уточнили информацию и скоро напишем! Если появились новые детали — пишите здесь.'
