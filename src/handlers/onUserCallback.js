@@ -59,12 +59,14 @@ async function onUserCallback(ctx, adminChatId) {
 
   if (payload === 'faq_broken:platform:lava') {
     await ctx.answerOnCallback({});
+    store.setUserState(userId, 'awaiting_ticket', { topic: 'broken', platform: 'lava' });
     await showStep2Lava(ctx);
     return;
   }
 
   if (payload === 'faq_broken:platform:boosty') {
     await ctx.answerOnCallback({});
+    store.setUserState(userId, 'awaiting_ticket', { topic: 'broken', platform: 'boosty' });
     await showStep2Boosty(ctx);
     return;
   }
