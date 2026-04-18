@@ -15,25 +15,25 @@ async function onUserCallback(ctx, adminChatId) {
   // ── /start menu buttons ───────────────────────────────────────────────────
 
   if (payload === 'start:buy') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     await showBuyFaq(ctx);
     return;
   }
 
   if (payload === 'start:broken') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     await showStep1(ctx);
     return;
   }
 
   if (payload === 'start:compose') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     await showComposeFaq(ctx);
     return;
   }
 
   if (payload === 'start:other') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'other' });
     await ctx.reply('Напишите ваш вопрос — я передам его команде 🐻👇');
     return;
@@ -42,14 +42,14 @@ async function onUserCallback(ctx, adminChatId) {
   // ── Buy FAQ ───────────────────────────────────────────────────────────────
 
   if (payload === 'faq_buy:yes') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.resetUserState(userId);
     await ctx.reply('Отлично! Если появятся вопросы — пишите 🐻');
     return;
   }
 
   if (payload === 'faq_buy:no') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'buy' });
     await ctx.reply('Напишите ваш вопрос — я передам его команде 🐻👇');
     return;
@@ -58,21 +58,21 @@ async function onUserCallback(ctx, adminChatId) {
   // ── Broken FAQ — platform selection ──────────────────────────────────────
 
   if (payload === 'faq_broken:platform:lava') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'broken', platform: 'lava' });
     await showStep2Lava(ctx);
     return;
   }
 
   if (payload === 'faq_broken:platform:boosty') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'broken', platform: 'boosty' });
     await showStep2Boosty(ctx);
     return;
   }
 
   if (payload === 'faq_broken:platform:unknown') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'broken', platform: 'unknown' });
     await showStep3(ctx);
     return;
@@ -81,7 +81,7 @@ async function onUserCallback(ctx, adminChatId) {
   // ── Broken FAQ — Lava Top spam check ─────────────────────────────────────
 
   if (payload === 'faq_broken:spam:yes') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { spam_check: 'yes' });
     await ctx.reply(
       'Отлично! Если письмо есть, но ссылка всё равно не открывается — опишите что происходит 👇'
@@ -90,7 +90,7 @@ async function onUserCallback(ctx, adminChatId) {
   }
 
   if (payload === 'faq_broken:spam:no') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { spam_check: 'no' });
     await showStep3(ctx);
     return;
@@ -99,14 +99,14 @@ async function onUserCallback(ctx, adminChatId) {
   // ── Broken FAQ — Boosty file check ───────────────────────────────────────
 
   if (payload === 'faq_broken:boosty:visible') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { file_visible: 'visible' });
     await showStep3(ctx);
     return;
   }
 
   if (payload === 'faq_broken:boosty:missing') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { file_visible: 'missing' });
     await showStep3(ctx);
     return;
@@ -115,7 +115,7 @@ async function onUserCallback(ctx, adminChatId) {
   // ── Compose FAQ ───────────────────────────────────────────────────────────
 
   if (payload === 'faq_compose:idea') {
-    await ctx.answerOnCallback({});
+    await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'compose_idea' });
     await ctx.reply('Опишите свою идею — я передам её команде 🐻👇');
     return;
