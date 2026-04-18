@@ -58,24 +58,28 @@ function buildTicketCard(ticket, hasMedia = false) {
   const userLine = formatUserLine(ticket.user_name, ticket.username, ticket.user_id);
   const contextLine = buildContextLine(ticket.topic, ticket.platform, ticket.context);
 
+  const variantsText = ticket.ai_variants && ticket.ai_variants.length > 0
+    ? '\n\n' + ticket.ai_variants.map((v, i) => `📝 Вариант ${i + 1}:\n${v}`).join('\n\n')
+    : '';
+
   return (
     `${ticket.label} Новый вопрос • #${ticket.ticket_id}\n\n` +
     `👤 ${userLine}\n` +
     `🕐 ${time} | ${ordinal(ticket.appeal_count)} обращение\n` +
     `${contextLine}\n\n` +
     `💬 «${ticket.last_question}»` +
-    (hasMedia ? '\n📸 [медиафайл прикреплён]' : '')
+    (hasMedia ? '\n📸 [медиафайл прикреплён]' : '') +
+    variantsText
   );
 }
 
 function buildTicketButtons(ticketId, variants) {
+  const variantRows = variants.map((_, i) => [
+    Keyboard.button.callback(`Вариант ${i + 1}`, `reply:${ticketId}:${i}`),
+  ]);
   return [
-    [
-      ...variants.map((_, i) =>
-        Keyboard.button.callback(`Вариант ${i + 1}`, `reply:${ticketId}:${i}`)
-      ),
-      Keyboard.button.callback('✍️ Свой', `custom:${ticketId}`),
-    ],
+    ...variantRows,
+    [Keyboard.button.callback('✍️ Свой ответ', `custom:${ticketId}`)],
     [
       Keyboard.button.callback('✅ Решён', `ticket:resolve:${ticketId}`),
       Keyboard.button.callback('✗ Не решён', `ticket:return:${ticketId}`),

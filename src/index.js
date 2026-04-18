@@ -8,6 +8,7 @@ const onUserCallback = require('./handlers/onUserCallback');
 const onAdminCallback = require('./handlers/onAdminCallback');
 const { onAdminReply } = require('./handlers/onAdminReply');
 const onAdminCommand = require('./handlers/onAdminCommand');
+const { handleStart } = require('./flows/start');
 
 const app = express();
 app.use(express.json());
@@ -34,7 +35,7 @@ async function registerWebhook() {
   try {
     await axios.post(
       'https://botapi.max.ru/subscriptions',
-      { url: WEBHOOK_URL, update_types: ['message_created', 'message_callback'] },
+      { url: WEBHOOK_URL, update_types: ['message_created', 'message_callback', 'bot_started'] },
       { headers: { Authorization: BOT_TOKEN } }
     );
     console.log('Webhook зарегистрирован:', WEBHOOK_URL);
@@ -51,6 +52,14 @@ async function init() {
 
   const adminChatId = Number(ADMIN_CHAT_ID);
   console.log('Чат с админами:', adminChatId);
+
+  bot.on('bot_started', async (ctx) => {
+    try {
+      await handleStart(ctx);
+    } catch (err) {
+      console.error('bot_started error:', err.message);
+    }
+  });
 
   bot.on('message_callback', async (ctx) => {
     try {
