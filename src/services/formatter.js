@@ -130,7 +130,12 @@ function buildReturnedCard(ticket) {
 // ── Additional message notification ──────────────────────────────────────────
 
 function buildAddMessageNotification(ticket, text) {
-  return `📩 Новое сообщение от ${ticket.user_name} (#${ticket.ticket_id})\n💬 «${text}»`;
+  const contextLine = buildContextLine(ticket.topic, ticket.platform, ticket.context);
+  return (
+    `📩 Новое сообщение от ${ticket.user_name} (#${ticket.ticket_id})\n` +
+    `${contextLine}\n` +
+    `💬 «${text}»`
+  );
 }
 
 // ── Rating message sent to user ───────────────────────────────────────────────
