@@ -1,5 +1,4 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const store = require('../services/store');
 
 const PLATFORM_BUTTONS = [[
   Keyboard.button.callback('Boosty', 'faq_broken:platform:boosty'),
@@ -18,16 +17,12 @@ const BOOSTY_FILE_BUTTONS = [[
 ]];
 
 async function showStep1(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'faq_broken_p1', { topic: 'broken' });
   await ctx.reply('😟 Разберёмся вместе! Где вы покупали?', {
     attachments: [Keyboard.inlineKeyboard(PLATFORM_BUTTONS)],
   });
 }
 
 async function showStep2Lava(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'faq_broken_p2a', { platform: 'lava' });
   await ctx.reply(
     'Первым делом проверьте папку «Спам» в вашей почте — ' +
     'письмо со ссылкой иногда попадает туда.\n\nПисьмо нашлось?',
@@ -36,17 +31,14 @@ async function showStep2Lava(ctx) {
 }
 
 async function showStep2Boosty(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'faq_broken_p2b', { platform: 'boosty' });
   await ctx.reply(
-    'Зайдите в личный кабинет Boosty → раздел «Мои покупки» — файл должен быть там.\n\nФайл отображается?',
+    'Зайдите снова по той же ссылке, по которой оформляли — откроется пост с текстом и файлами.\n\n' +
+    'Предварительно отключите ВПН.\n\nФайл открылся?',
     { attachments: [Keyboard.inlineKeyboard(BOOSTY_FILE_BUTTONS)] }
   );
 }
 
 async function showStep3(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'awaiting_ticket');
   await ctx.reply(
     'Чтобы помочь быстрее, пожалуйста:\n\n' +
     '1️⃣ Опишите что происходит (или что ожидали, а получили другое)\n' +

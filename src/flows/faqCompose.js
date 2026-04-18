@@ -1,6 +1,5 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const { HELPER_BOT_URL } = require('../config');
-const store = require('../services/store');
 
 const COMPOSE_TEXT =
   '🎨 Мы не работаем на заказ в стандартном режиме. Но есть два варианта:\n\n' +
@@ -13,8 +12,6 @@ const COMPOSE_BUTTONS = [
 ];
 
 async function showComposeFaq(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'faq_compose', { topic: 'compose' });
   await ctx.reply(COMPOSE_TEXT, {
     attachments: [Keyboard.inlineKeyboard(COMPOSE_BUTTONS)],
   });

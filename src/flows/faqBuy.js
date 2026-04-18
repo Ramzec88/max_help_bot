@@ -1,6 +1,5 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const { BOOSTY_URL, LAVA_TOP_URL } = require('../config');
-const store = require('../services/store');
 
 const BUY_TEXT =
   `🎭 Наши сценарии можно купить в двух местах:\n\n` +
@@ -15,8 +14,6 @@ const BUY_BUTTONS = [[
 ]];
 
 async function showBuyFaq(ctx) {
-  const userId = String(ctx.user.user_id);
-  store.setUserState(userId, 'faq_buy', { topic: 'buy' });
   await ctx.reply(BUY_TEXT, {
     attachments: [Keyboard.inlineKeyboard(BUY_BUTTONS)],
     format: 'markdown',

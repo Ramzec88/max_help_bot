@@ -131,8 +131,16 @@ function resetUserState(userId) {
   userState.set(String(userId), { state: 'idle', context: {} });
 }
 
-function hasSeenStart(userId) {
-  return userStartShown.has(String(userId));
+async function hasSeenStart(userId) {
+  if (userStartShown.has(String(userId))) return true;
+  // Fallback: check if user has any tickets in DB (survives server restarts)
+  const { count, error } = await supabase
+    .from('support_dialogs')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', String(userId));
+  const seen = !error && (count || 0) > 0;
+  if (seen) userStartShown.add(String(userId));
+  return seen;
 }
 
 function markStartShown(userId) {

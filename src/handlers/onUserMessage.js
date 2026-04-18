@@ -67,7 +67,7 @@ async function onUserMessage(ctx, adminChatId) {
 }
 
 async function handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId) {
-  if (!store.hasSeenStart(userId)) {
+  if (!await store.hasSeenStart(userId)) {
     await handleStart(ctx);
     return;
   }
