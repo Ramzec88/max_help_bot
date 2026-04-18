@@ -11,8 +11,8 @@ const COMPOSE_BUTTONS = [
   [Keyboard.button.callback('💡 Описать свою идею', 'faq_compose:idea')],
 ];
 
-async function showComposeFaq(ctx) {
-  await ctx.reply(COMPOSE_TEXT, {
+async function showComposeFaq(api, chatId) {
+  await api.sendMessageToChat(chatId, COMPOSE_TEXT, {
     attachments: [Keyboard.inlineKeyboard(COMPOSE_BUTTONS)],
   });
 }

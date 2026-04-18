@@ -13,8 +13,8 @@ const BUY_BUTTONS = [[
   Keyboard.button.callback('🤔 Остался вопрос', 'faq_buy:no'),
 ]];
 
-async function showBuyFaq(ctx) {
-  await ctx.reply(BUY_TEXT, {
+async function showBuyFaq(api, chatId) {
+  await api.sendMessageToChat(chatId, BUY_TEXT, {
     attachments: [Keyboard.inlineKeyboard(BUY_BUTTONS)],
     format: 'markdown',
   });
