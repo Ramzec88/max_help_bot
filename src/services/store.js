@@ -24,7 +24,7 @@ async function createTicket(data) {
 
   const row = {
     user_id: userId,
-    chat_id: String(data.chat_id),
+    chat_id: Number(data.chat_id),
     user_name: data.user_name || `Пользователь ${userId}`,
     username: data.username || null,
     topic: data.topic || 'other',
@@ -94,7 +94,7 @@ function _mapRow(row) {
   return {
     ticket_id: row.ticket_id,
     user_id: String(row.user_id),
-    chat_id: String(row.chat_id),
+    chat_id: Number(row.chat_id),
     user_name: row.user_name,
     username: row.username,
     topic: row.topic,

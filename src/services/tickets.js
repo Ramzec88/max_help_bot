@@ -5,7 +5,7 @@ const formatter = require('./formatter');
 
 async function openTicket(ctx, adminChatId, { topic, platform, context, question, mediaAttachments }) {
   const userId = String(ctx.user.user_id);
-  const chatId = String(ctx.chatId);
+  const chatId = Number(ctx.chatId);
   const userName = ctx.user.name || `Пользователь ${userId}`;
   const username = ctx.user.username || null;
 
