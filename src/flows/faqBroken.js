@@ -9,18 +9,18 @@ const PLATFORM_BUTTONS = [[
 
 const SPAM_BUTTONS = [[
   Keyboard.button.callback('✅ Да, нашла!', 'faq_broken:spam:yes'),
-  Keyboard.button.callback('✗ Нет, не нашла', 'faq_broken:spam:no'),
+  Keyboard.button.callback('❌ Нет, не нашла', 'faq_broken:spam:no'),
 ]];
 
 const BOOSTY_FILE_BUTTONS = [[
   Keyboard.button.callback('✅ Вижу, но не открывается', 'faq_broken:boosty:visible'),
-  Keyboard.button.callback('✗ Не нахожу', 'faq_broken:boosty:missing'),
+  Keyboard.button.callback('❌ Не нахожу', 'faq_broken:boosty:missing'),
 ]];
 
 async function showStep1(ctx) {
   const userId = String(ctx.user.user_id);
   store.setUserState(userId, 'faq_broken_p1', { topic: 'broken' });
-  await ctx.reply('😊 Разберёмся вместе! Где вы покупали?', {
+  await ctx.reply('😟 Разберёмся вместе! Где вы покупали?', {
     attachments: [Keyboard.inlineKeyboard(PLATFORM_BUTTONS)],
   });
 }
@@ -49,8 +49,8 @@ async function showStep3(ctx) {
   store.setUserState(userId, 'awaiting_ticket');
   await ctx.reply(
     'Чтобы помочь быстрее, пожалуйста:\n\n' +
-    '📝 Опишите что происходит (или что ожидали, а получили другое)\n' +
-    '📎 Приложите скриншот, если возможно\n\n' +
+    '1️⃣ Опишите что происходит (или что ожидали, а получили другое)\n' +
+    '2️⃣ Приложите скриншот, если возможно\n\n' +
     'Напишите прямо здесь 👇'
   );
 }
