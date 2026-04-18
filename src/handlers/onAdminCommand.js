@@ -66,8 +66,12 @@ async function onAdminCommand(ctx, adminChatId) {
     await store.closeTicket(ticketId);
 
     if (ticket.admin_msg_id) {
-      const updatedText = formatter.buildAnsweredCard(ticket, replyText);
-      await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
+      try {
+        const updatedText = formatter.buildAnsweredCard(ticket, replyText);
+        await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
+      } catch (err) {
+        console.error('editMessage error (non-fatal):', err.message);
+      }
     }
 
     await ctx.api.sendMessageToChat(adminChatId, `✅ Ответ на тикет #${ticketId} отправлен.`);

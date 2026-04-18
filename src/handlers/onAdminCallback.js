@@ -2,7 +2,16 @@ const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
 
-const CUSTOM_REPLY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const CUSTOM_REPLY_TIMEOUT_MS = 10 * 60 * 1000;
+
+async function safeEdit(api, msgId, data) {
+  if (!msgId) return;
+  try {
+    await api.editMessage(msgId, data);
+  } catch (err) {
+    console.error('editMessage error (non-fatal):', err.message);
+  }
+}
 
 async function onAdminCallback(ctx, adminChatId) {
   const payload = ctx.callback?.payload;
@@ -30,15 +39,12 @@ async function onAdminCallback(ctx, adminChatId) {
     const replyText = ticket.ai_variants[idx];
     if (!replyText) return;
 
-    // Lock immediately (double-press protection)
     await store.updateTicket(ticketId, { status: 'answered' });
 
-    // Remove buttons from card immediately
-    if (ticket.admin_msg_id) {
-      await ctx.api.editMessage(ticket.admin_msg_id, { attachments: [] });
-    }
+    // Non-fatal: remove buttons from card
+    await safeEdit(ctx.api, ticket.admin_msg_id, { attachments: [] });
 
-    // Send answer to user
+    // Critical: send answer to user
     await ctx.api.sendMessageToChat(ticket.chat_id, replyText);
 
     // Send rating request to user
@@ -48,11 +54,9 @@ async function onAdminCallback(ctx, adminChatId) {
     });
     store.setUserState(ticket.user_id, 'rating_pending');
 
-    // Update admin card with answer
+    // Non-fatal: update admin card text
     const updatedText = formatter.buildAnsweredCard(ticket, replyText);
-    if (ticket.admin_msg_id) {
-      await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
-    }
+    await safeEdit(ctx.api, ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
 
     await ctx.answerOnCallback({ notification: '✅ Ответ отправлен!' });
     return;
@@ -73,12 +77,9 @@ async function onAdminCallback(ctx, adminChatId) {
       return;
     }
 
-    // Remove buttons immediately (double-press protection)
-    if (ticket.admin_msg_id) {
-      await ctx.api.editMessage(ticket.admin_msg_id, { attachments: [] });
-    }
+    // Non-fatal: remove buttons
+    await safeEdit(ctx.api, ticket.admin_msg_id, { attachments: [] });
 
-    // Set admin mode with 10-min auto-timeout
     const timeoutHandle = setTimeout(async () => {
       const mode = await store.getAdminMode(adminId);
       if (mode?.targetTicketId === ticketId) {
@@ -119,11 +120,11 @@ async function onAdminCallback(ctx, adminChatId) {
     }
 
     await store.closeTicket(ticketId);
-
-    if (ticket.admin_msg_id) {
-      const updatedText = formatter.buildResolvedCard(ticket);
-      await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
-    }
+    await safeEdit(ctx.api, ticket.admin_msg_id, {
+      text: formatter.buildResolvedCard(ticket),
+      attachments: [],
+      format: 'markdown',
+    });
 
     await ctx.answerOnCallback({ notification: `✅ Тикет #${ticketId} закрыт` });
     return;
@@ -144,10 +145,11 @@ async function onAdminCallback(ctx, adminChatId) {
       return;
     }
 
-    if (ticket.admin_msg_id) {
-      const updatedText = formatter.buildReturnedCard(ticket);
-      await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
-    }
+    await safeEdit(ctx.api, ticket.admin_msg_id, {
+      text: formatter.buildReturnedCard(ticket),
+      attachments: [],
+      format: 'markdown',
+    });
 
     await ctx.api.sendMessageToChat(
       ticket.chat_id,

@@ -67,8 +67,12 @@ async function finishCustomReply(adminId, adminChatId, api) {
 
   // Update admin card
   if (ticket.admin_msg_id) {
-    const updatedText = formatter.buildAnsweredCard(ticket, '[свободный ответ]');
-    await api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
+    try {
+      const updatedText = formatter.buildAnsweredCard(ticket, '[свободный ответ]');
+      await api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
+    } catch (err) {
+      console.error('editMessage error (non-fatal):', err.message);
+    }
   }
 
   await api.sendMessageToChat(adminChatId, `✅ Ответ завершён. Тикет #${ticket.ticket_id} закрыт.`);
