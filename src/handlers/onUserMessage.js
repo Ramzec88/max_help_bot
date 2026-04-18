@@ -1,57 +1,91 @@
-const { Keyboard } = require('@maxhub/max-bot-api');
-const ai = require('../services/ai');
 const store = require('../services/store');
-const formatter = require('../services/formatter');
-const { extractMediaAttachments, describeAttachments } = require('../services/media');
+const { openTicket } = require('../services/tickets');
+const { extractMediaAttachments } = require('../services/media');
+const { handleStart } = require('../flows/start');
 
 async function onUserMessage(ctx, adminChatId) {
+  if (ctx.user?.is_bot) return;
+
   const userId = String(ctx.user.user_id);
-  const chatId = String(ctx.chatId);
-  const userName = ctx.user.name || `Пользователь ${userId}`;
-  const username = ctx.user.username || null;
   const text = ctx.message?.body?.text || '';
   const mediaAttachments = extractMediaAttachments(ctx.message);
 
-  // Игнорировать пустые сообщения без текста и медиа
+  // /start command
+  if (text === '/start') {
+    await handleStart(ctx);
+    return;
+  }
+
+  // Ignore empty messages with no media
   if (!text && mediaAttachments.length === 0) return;
 
-  // Подтверждение пользователю
-  await ctx.reply('⏳ Ваш вопрос принят! Скоро ответим.');
+  const { state, context } = store.getUserState(userId);
 
-  // Для AI используем текст, либо описание медиа если текста нет
-  const questionText = text || describeAttachments(mediaAttachments);
+  switch (state) {
+    case 'awaiting_ticket': {
+      // User typed their issue description after a FAQ branch collected context
+      const question = text || '[медиафайл]';
+      await openTicket(ctx, adminChatId, {
+        topic: context.topic || 'other',
+        platform: context.platform || 'unknown',
+        context,
+        question,
+        mediaAttachments,
+      });
+      break;
+    }
 
-  // AI-варианты
-  const { variants, label } = await ai.generateVariants(questionText);
+    case 'ticket_open': {
+      // Add follow-up message to existing open ticket
+      const ticket = store.getOpenTicketByUserId(userId);
+      if (!ticket) {
+        // Ticket was closed; treat as new question
+        await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
+        return;
+      }
+      const question = text || '[медиафайл]';
+      store.addMessageToTicket(ticket.ticket_id, question);
 
-  // Сохранить диалог (text хранит оригинальный текст или описание медиа)
-  store.saveDialog(userId, { chatId, userId, userName, username, text: questionText, variants, label, status: 'open' });
+      if (mediaAttachments.length > 0) {
+        await ctx.api.sendMessageToChat(adminChatId, `👤 ${ticket.user_name}: ${text || ''}`, {
+          attachments: mediaAttachments,
+        });
+      }
+      if (text) {
+        const { buildAddMessageNotification } = require('../services/formatter');
+        await ctx.api.sendMessageToChat(
+          adminChatId,
+          buildAddMessageNotification(ticket, text)
+        );
+      }
+      break;
+    }
 
-  // Если есть медиа — переслать в чат с админами отдельным сообщением перед карточкой
-  if (mediaAttachments.length > 0) {
-    const caption = text ? `👤 ${userName}: ${text}` : `👤 ${userName}`;
-    await ctx.api.sendMessageToChat(adminChatId, caption, {
-      attachments: mediaAttachments,
-    });
+    case 'rating_pending':
+      // User wrote text instead of pressing rating — open a new ticket
+      await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
+      break;
+
+    default:
+      // idle or any unrecognised state
+      await handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId);
+      break;
   }
+}
 
-  // Кнопки для карточки
-  const buttons = [
-    variants.map((_, i) => Keyboard.button.callback(`Вариант ${i + 1}`, `reply:${userId}:${i}`)),
-    [Keyboard.button.callback('✍️ Свой ответ', `custom:${userId}`)],
-  ];
-
-  const adminText = formatter.buildAdminMessage({ userName, username, userId, text: questionText, variants, label });
-
-  // Отправить карточку с кнопками в чат с админами
-  const sentMsg = await ctx.api.sendMessageToChat(adminChatId, adminText, {
-    attachments: [Keyboard.inlineKeyboard(buttons)],
-    format: 'markdown',
+async function handleNewQuestion(ctx, adminChatId, text, mediaAttachments, userId) {
+  if (!store.hasSeenStart(userId)) {
+    await handleStart(ctx);
+    return;
+  }
+  const question = text || '[медиафайл]';
+  await openTicket(ctx, adminChatId, {
+    topic: 'other',
+    platform: 'unknown',
+    context: {},
+    question,
+    mediaAttachments,
   });
-
-  if (sentMsg?.body?.mid) {
-    store.saveDialog(userId, { adminMsgId: sentMsg.body.mid });
-  }
 }
 
 module.exports = onUserMessage;

@@ -1,36 +1,151 @@
-// Формируем упоминание пользователя:
-// - если есть username → [Имя](https://max.ru/username)
-// - иначе → @[user_id] Имя (mention по ID)
-function formatUserLink(userName, username, userId) {
-  if (username) {
-    return `[${userName}](https://max.ru/${username})`;
-  }
-  return `@[${userId}] ${userName}`;
+const { Keyboard } = require('@maxhub/max-bot-api');
+
+const TOPIC_LABELS = {
+  buy: 'Где купить',
+  broken: 'Не работает покупка',
+  compose: 'Хочу составить',
+  compose_idea: 'Идея / запрос',
+  other: 'Другой вопрос',
+};
+
+const PLATFORM_LABELS = {
+  boosty: '🟠 Boosty',
+  lava: '🔵 Lava Top',
+  unknown: '❓ Неизвестно',
+};
+
+function ordinal(n) {
+  return `${n}-е`;
 }
 
-function buildAdminMessage({ userName, username, userId, text, variants, label }) {
-  const userDisplay = formatUserLink(userName, username, userId);
+function formatTime(date) {
+  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDurationMin(from, to) {
+  return Math.round((to - from) / 60000);
+}
+
+function formatUserLine(userName, username, userId) {
+  if (username) return `[${userName}](https://max.ru/${username})`;
+  return `${userName} (ссылка недоступна)`;
+}
+
+function buildContextLine(topic, platform, context) {
+  const lines = [];
+  const topicLabel = TOPIC_LABELS[topic] || topic;
+  const platformLabel = platform !== 'unknown' ? ` • ${PLATFORM_LABELS[platform] || platform}` : '';
+  lines.push(`🏷️ Тема: ${topicLabel}${platformLabel}`);
+
+  if (topic === 'broken') {
+    if (platform === 'lava' && context.spam_check) {
+      const val = context.spam_check === 'yes' ? 'нашла (не открывается)' : 'не нашла';
+      lines.push(`🔍 Письмо в спаме: ${val}`);
+    }
+    if (platform === 'boosty' && context.file_visible) {
+      const val = context.file_visible === 'visible' ? 'виден (не открывается)' : 'не виден';
+      lines.push(`🔍 Файл в кабинете: ${val}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ── Ticket card (sent to admin chat) ──────────────────────────────────────────
+
+function buildTicketCard(ticket, hasMedia = false) {
+  const time = formatTime(ticket.created_at);
+  const userLine = formatUserLine(ticket.user_name, ticket.username, ticket.user_id);
+  const contextLine = buildContextLine(ticket.topic, ticket.platform, ticket.context);
+
   return (
-    `${label} Новый вопрос\n\n` +
-    `👤 ${userDisplay}\n\n` +
-    `💬 «${text}»\n\n` +
-    `──────────────────────────\n` +
-    `🤖 Варианты ответа:\n\n` +
-    variants.map((v, i) => `${i + 1}. ${v}`).join('\n\n')
+    `${ticket.label} Новый вопрос • #${ticket.ticket_id}\n\n` +
+    `👤 ${userLine}\n` +
+    `🕐 ${time} | ${ordinal(ticket.appeal_count)} обращение\n` +
+    `${contextLine}\n\n` +
+    `💬 «${ticket.last_question}»` +
+    (hasMedia ? '\n📸 [медиафайл прикреплён]' : '')
   );
 }
 
-function buildAnsweredMessage({ userName, username, userId, text, replyText, label }) {
-  const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  const userDisplay = formatUserLink(userName, username, userId);
+function buildTicketButtons(ticketId, variants) {
+  return [
+    [
+      ...variants.map((_, i) =>
+        Keyboard.button.callback(`Вариант ${i + 1}`, `reply:${ticketId}:${i}`)
+      ),
+      Keyboard.button.callback('✍️ Свой', `custom:${ticketId}`),
+    ],
+    [
+      Keyboard.button.callback('✅ Решён', `ticket:resolve:${ticketId}`),
+      Keyboard.button.callback('✗ Не решён', `ticket:return:${ticketId}`),
+    ],
+  ];
+}
+
+// ── Card updates ──────────────────────────────────────────────────────────────
+
+function buildAnsweredCard(ticket, replyText) {
+  const time = formatTime(new Date());
+  const duration = formatDurationMin(ticket.created_at, new Date());
+  const userLine = formatUserLine(ticket.user_name, ticket.username, ticket.user_id);
 
   return (
-    `${label} Вопрос\n\n` +
-    `👤 ${userDisplay}\n` +
-    `💬 «${text}»\n\n` +
-    `✅ Ответ отправлен в ${time}\n` +
+    `${ticket.label} Вопрос • #${ticket.ticket_id}\n\n` +
+    `👤 ${userLine}\n` +
+    `💬 «${ticket.last_question}»\n\n` +
+    `✅ Тикет #${ticket.ticket_id} закрыт • ${time} (${duration} мин)\n` +
     `📤 «${replyText}»`
   );
 }
 
-module.exports = { buildAdminMessage, buildAnsweredMessage };
+function buildResolvedCard(ticket) {
+  const time = formatTime(new Date());
+  const duration = formatDurationMin(ticket.created_at, new Date());
+  const userLine = formatUserLine(ticket.user_name, ticket.username, ticket.user_id);
+
+  return (
+    `${ticket.label} Вопрос • #${ticket.ticket_id}\n\n` +
+    `👤 ${userLine}\n` +
+    `💬 «${ticket.last_question}»\n\n` +
+    `✅ Тикет #${ticket.ticket_id} закрыт • ${time} (${duration} мин)`
+  );
+}
+
+function buildReturnedCard(ticket) {
+  const userLine = formatUserLine(ticket.user_name, ticket.username, ticket.user_id);
+
+  return (
+    `${ticket.label} Вопрос • #${ticket.ticket_id}\n\n` +
+    `👤 ${userLine}\n` +
+    `💬 «${ticket.last_question}»\n\n` +
+    `🔄 Тикет #${ticket.ticket_id} возвращён в очередь`
+  );
+}
+
+// ── Additional message notification ──────────────────────────────────────────
+
+function buildAddMessageNotification(ticket, text) {
+  return `📩 Новое сообщение от ${ticket.user_name} (#${ticket.ticket_id})\n💬 «${text}»`;
+}
+
+// ── Rating message sent to user ───────────────────────────────────────────────
+
+const RATING_BUTTONS = (ticketId) => [[
+  Keyboard.button.callback('👍 Да, спасибо!', `rating:positive:${ticketId}`),
+  Keyboard.button.callback('👎 Нет, не помогло', `rating:negative:${ticketId}`),
+]];
+
+function buildRatingMessage(ticketId) {
+  return {
+    text: 'Мы ответили на ваш вопрос. Помогло? 🐻',
+    buttons: RATING_BUTTONS(ticketId),
+  };
+}
+
+module.exports = {
+  buildTicketCard, buildTicketButtons,
+  buildAnsweredCard, buildResolvedCard, buildReturnedCard,
+  buildAddMessageNotification,
+  buildRatingMessage,
+};

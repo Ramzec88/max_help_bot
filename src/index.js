@@ -4,8 +4,10 @@ const axios = require('axios');
 const bot = require('./bot');
 const { PORT, BOT_TOKEN, WEBHOOK_URL, ADMIN_CHAT_ID } = require('./config');
 const onUserMessage = require('./handlers/onUserMessage');
+const onUserCallback = require('./handlers/onUserCallback');
 const onAdminCallback = require('./handlers/onAdminCallback');
-const onAdminReply = require('./handlers/onAdminReply');
+const { onAdminReply } = require('./handlers/onAdminReply');
+const onAdminCommand = require('./handlers/onAdminCommand');
 
 const app = express();
 app.use(express.json());
@@ -52,17 +54,33 @@ async function init() {
 
   bot.on('message_callback', async (ctx) => {
     try {
-      await onAdminCallback(ctx, adminChatId);
+      const payload = ctx.callback?.payload || '';
+      const isUserCallback =
+        payload.startsWith('start:') ||
+        payload.startsWith('faq_') ||
+        payload.startsWith('rating:');
+
+      if (isUserCallback) {
+        await onUserCallback(ctx, adminChatId);
+      } else {
+        await onAdminCallback(ctx, adminChatId);
+      }
     } catch (err) {
-      console.error('onAdminCallback error:', err.message);
+      console.error('onCallback error:', err.message);
     }
   });
 
   bot.on('message_created', async (ctx) => {
     try {
       if (ctx.user?.is_bot) return;
+
       if (ctx.chatId === adminChatId) {
-        await onAdminReply(ctx, adminChatId);
+        const text = ctx.message?.body?.text || '';
+        if (text.startsWith('/')) {
+          await onAdminCommand(ctx, adminChatId);
+        } else {
+          await onAdminReply(ctx, adminChatId);
+        }
       } else {
         await onUserMessage(ctx, adminChatId);
       }
