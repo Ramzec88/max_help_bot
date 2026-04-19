@@ -20,7 +20,18 @@ async function sendToUser(api, rawChatId, text, opts) {
 async function onAdminReply(ctx, adminChatId) {
   const adminId = String(ctx.user.user_id);
   const adminMode = await store.getAdminMode(adminId);
-  if (!adminMode || adminMode.mode !== 'awaiting_reply') return;
+  if (!adminMode || adminMode.mode !== 'awaiting_reply') {
+    const text = ctx.message?.body?.text || '';
+    if (text && !text.startsWith('/')) {
+      await ctx.api.sendMessageToChat(
+        adminChatId,
+        '💡 Чтобы ответить пользователю:\n' +
+        '• нажмите кнопку [Вариант 1/2/3] на карточке тикета — ответ уйдёт автоматически\n' +
+        '• или нажмите [✍️ Свой], затем напишите текст и завершите /done'
+      );
+    }
+    return;
+  }
 
   const replyText = ctx.message?.body?.text || '';
   const mediaAttachments = extractMediaAttachments(ctx.message);
