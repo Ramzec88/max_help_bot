@@ -207,8 +207,18 @@ function isPaused() {
 }
 function getPauseUntil() { return _pauseUntil; }
 
+async function getOpenTickets() {
+  const { data, error } = await supabase
+    .from('support_dialogs')
+    .select('*')
+    .eq('status', 'open')
+    .order('created_at', { ascending: true });
+  if (error || !data) return [];
+  return data.map(_mapRow);
+}
+
 module.exports = {
-  createTicket, getTicket, getOpenTicketByUserId, updateTicket, closeTicket, addMessageToTicket,
+  createTicket, getTicket, getOpenTicketByUserId, getOpenTickets, updateTicket, closeTicket, addMessageToTicket,
   getUserState, setUserState, resetUserState, hasSeenStart, markStartShown,
   setAdminMode, getAdminMode, clearAdminMode,
   setPause, clearPause, isPaused, getPauseUntil,

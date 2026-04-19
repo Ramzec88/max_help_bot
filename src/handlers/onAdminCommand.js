@@ -103,6 +103,25 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /queue — list open tickets
+  if (text === '/queue') {
+    const tickets = await store.getOpenTickets();
+    if (tickets.length === 0) {
+      await ctx.api.sendMessageToChat(adminChatId, '✅ Открытых тикетов нет.');
+      return;
+    }
+    const lines = tickets.map((t) => {
+      const age = Math.round((Date.now() - t.created_at.getTime()) / 60000);
+      const user = t.username ? `@${t.username}` : t.user_name;
+      return `#${t.ticket_id} ${t.label} ${user} — ${t.last_question.slice(0, 50)} (${age} мин)`;
+    });
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `📋 Открытые тикеты (${tickets.length}):\n\n${lines.join('\n')}`
+    );
+    return;
+  }
+
   // /send {userId} {text}
   if (text.startsWith('/send ')) {
     const parts = text.slice(6).trim().split(' ');
