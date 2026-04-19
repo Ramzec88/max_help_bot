@@ -9,6 +9,8 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   const userName = ctx.user.name || `Пользователь ${userId}`;
   const username = ctx.user.username || null;
 
+  console.log(`[openTicket] user_id=${userId} chat_id=${chatId} ctx.chatId=${ctx.chatId} (type ${typeof ctx.chatId})`);
+
   // Pause mode — notify user and skip ticket creation
   if (store.isPaused()) {
     await ctx.reply('🐻 Сейчас мы временно недоступны. Напишите позже — обязательно ответим!');

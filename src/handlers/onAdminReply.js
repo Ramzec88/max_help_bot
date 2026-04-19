@@ -6,6 +6,17 @@ const { extractMediaAttachments } = require('../services/media');
 const DELAY_MS = 300;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function sendToUser(api, rawChatId, text, opts) {
+  const chatId = Number(rawChatId);
+  if (!Number.isFinite(chatId) || chatId === 0) {
+    throw new Error(`bad chat_id: ${rawChatId}`);
+  }
+  console.log(`[admin→user] chat_id=${chatId} len=${text?.length || 0}`);
+  const result = await api.sendMessageToChat(chatId, text, opts);
+  console.log(`[admin→user] ok mid=${result?.body?.mid || 'n/a'}`);
+  return result;
+}
+
 async function onAdminReply(ctx, adminChatId) {
   const adminId = String(ctx.user.user_id);
   const adminMode = await store.getAdminMode(adminId);
@@ -30,16 +41,25 @@ async function onAdminReply(ctx, adminChatId) {
     return;
   }
 
-  // Forward text to user
-  if (replyText) {
-    await sleep(DELAY_MS);
-    await ctx.api.sendMessageToChat(ticket.chat_id, replyText);
-  }
+  try {
+    // Forward text to user
+    if (replyText) {
+      await sleep(DELAY_MS);
+      await sendToUser(ctx.api, ticket.chat_id, replyText);
+    }
 
-  // Forward media to user (each with 300ms delay)
-  for (const att of mediaAttachments) {
-    await sleep(DELAY_MS);
-    await ctx.api.sendMessageToChat(ticket.chat_id, '', { attachments: [att] });
+    // Forward media to user (each with 300ms delay)
+    for (const att of mediaAttachments) {
+      await sleep(DELAY_MS);
+      await sendToUser(ctx.api, ticket.chat_id, '', { attachments: [att] });
+    }
+  } catch (err) {
+    console.error('admin reply send failed:', err.message, 'ticket:', ticket.ticket_id, 'chat_id:', ticket.chat_id);
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `❌ Не удалось отправить сообщение пользователю (тикет #${ticket.ticket_id}): ${err.message}`
+    );
+    return;
   }
 
   // Confirm in admin chat (silent — don't close mode yet, wait for /done)
@@ -59,10 +79,14 @@ async function finishCustomReply(adminId, adminChatId, api) {
   await store.closeTicket(ticket.ticket_id);
 
   // Send rating request to user
-  const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);
-  await api.sendMessageToChat(ticket.chat_id, ratingText, {
-    attachments: [Keyboard.inlineKeyboard(ratingButtons)],
-  });
+  try {
+    const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);
+    await sendToUser(api, ticket.chat_id, ratingText, {
+      attachments: [Keyboard.inlineKeyboard(ratingButtons)],
+    });
+  } catch (err) {
+    console.error('rating message failed (non-fatal):', err.message);
+  }
   store.setUserState(ticket.user_id, 'rating_pending');
 
   // Update admin card

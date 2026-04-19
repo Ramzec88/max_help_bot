@@ -91,10 +91,14 @@ async function addMessageToTicket(ticketId, text) {
 
 // Map DB row (snake_case, jsonb) → ticket object used throughout the app
 function _mapRow(row) {
+  const chatId = Number(row.chat_id);
+  if (!Number.isFinite(chatId) || chatId === 0) {
+    console.warn(`[store._mapRow] suspicious chat_id raw="${row.chat_id}" (type ${typeof row.chat_id}) ticket_id=${row.ticket_id}`);
+  }
   return {
     ticket_id: row.ticket_id,
     user_id: String(row.user_id),
-    chat_id: Number(row.chat_id),
+    chat_id: chatId,
     user_name: row.user_name,
     username: row.username,
     topic: row.topic,

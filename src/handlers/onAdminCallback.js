@@ -13,6 +13,17 @@ async function safeEdit(api, msgId, data) {
   }
 }
 
+async function sendToUser(api, rawChatId, text, opts) {
+  const chatId = Number(rawChatId);
+  if (!Number.isFinite(chatId) || chatId === 0) {
+    throw new Error(`bad chat_id: ${rawChatId}`);
+  }
+  console.log(`[admin→user] chat_id=${chatId} len=${text?.length || 0}`);
+  const result = await api.sendMessageToChat(chatId, text, opts);
+  console.log(`[admin→user] ok mid=${result?.body?.mid || 'n/a'}`);
+  return result;
+}
+
 async function onAdminCallback(ctx, adminChatId) {
   const payload = ctx.callback?.payload;
   if (!payload) return;
@@ -39,19 +50,34 @@ async function onAdminCallback(ctx, adminChatId) {
     const replyText = ticket.ai_variants[idx];
     if (!replyText) return;
 
+    // Critical: send answer to user FIRST. If this fails, ticket stays open.
+    try {
+      await sendToUser(ctx.api, ticket.chat_id, replyText);
+    } catch (err) {
+      console.error('sendToUser failed:', err.message, 'ticket:', ticketId, 'chat_id:', ticket.chat_id);
+      await ctx.api.sendMessageToChat(
+        adminChatId,
+        `❌ Не удалось отправить ответ пользователю (тикет #${ticketId}): ${err.message}`
+      );
+      await ctx.answerOnCallback({ notification: '❌ Ошибка отправки. См. чат.' });
+      return;
+    }
+
+    // Lock after successful delivery
     await store.updateTicket(ticketId, { status: 'answered' });
 
-    // Non-fatal: remove buttons from card
+    // Non-fatal: remove buttons
     await safeEdit(ctx.api, ticket.admin_msg_id, { attachments: [] });
 
-    // Critical: send answer to user
-    await ctx.api.sendMessageToChat(ticket.chat_id, replyText);
-
     // Send rating request to user
-    const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticketId);
-    await ctx.api.sendMessageToChat(ticket.chat_id, ratingText, {
-      attachments: [Keyboard.inlineKeyboard(ratingButtons)],
-    });
+    try {
+      const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticketId);
+      await sendToUser(ctx.api, ticket.chat_id, ratingText, {
+        attachments: [Keyboard.inlineKeyboard(ratingButtons)],
+      });
+    } catch (err) {
+      console.error('rating message failed (non-fatal):', err.message);
+    }
     store.setUserState(ticket.user_id, 'rating_pending');
 
     // Non-fatal: update admin card text
@@ -151,10 +177,16 @@ async function onAdminCallback(ctx, adminChatId) {
       format: 'markdown',
     });
 
-    await ctx.api.sendMessageToChat(
-      ticket.chat_id,
-      '🐻 Мы уточнили информацию и скоро напишем! Если появились новые детали — пишите здесь.'
-    );
+    try {
+      await sendToUser(
+        ctx.api,
+        ticket.chat_id,
+        '🐻 Мы уточнили информацию и скоро напишем! Если появились новые детали — пишите здесь.'
+      );
+    } catch (err) {
+      console.error('return notification failed:', err.message);
+      await ctx.api.sendMessageToChat(adminChatId, `⚠️ Не удалось уведомить пользователя: ${err.message}`);
+    }
 
     await ctx.answerOnCallback({ notification: `🔄 Тикет #${ticketId} возвращён в очередь` });
     return;

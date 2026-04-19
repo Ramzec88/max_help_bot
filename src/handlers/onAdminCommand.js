@@ -3,6 +3,17 @@ const store = require('../services/store');
 const formatter = require('../services/formatter');
 const { finishCustomReply } = require('./onAdminReply');
 
+async function sendToUser(api, rawChatId, text, opts) {
+  const chatId = Number(rawChatId);
+  if (!Number.isFinite(chatId) || chatId === 0) {
+    throw new Error(`bad chat_id: ${rawChatId}`);
+  }
+  console.log(`[admin→user] chat_id=${chatId} len=${text?.length || 0}`);
+  const result = await api.sendMessageToChat(chatId, text, opts);
+  console.log(`[admin→user] ok mid=${result?.body?.mid || 'n/a'}`);
+  return result;
+}
+
 async function onAdminCommand(ctx, adminChatId) {
   const text = ctx.message?.body?.text || '';
   const adminId = String(ctx.user.user_id);
@@ -54,13 +65,27 @@ async function onAdminCommand(ctx, adminChatId) {
       return;
     }
 
-    await store.updateTicket(ticketId, { status: 'answered' });
-    await ctx.api.sendMessageToChat(ticket.chat_id, replyText);
+    try {
+      await sendToUser(ctx.api, ticket.chat_id, replyText);
+    } catch (err) {
+      console.error('sendToUser failed:', err.message, 'ticket:', ticketId, 'chat_id:', ticket.chat_id);
+      await ctx.api.sendMessageToChat(
+        adminChatId,
+        `❌ Не удалось отправить ответ пользователю (тикет #${ticketId}): ${err.message}`
+      );
+      return;
+    }
 
-    const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticketId);
-    await ctx.api.sendMessageToChat(ticket.chat_id, ratingText, {
-      attachments: [Keyboard.inlineKeyboard(ratingButtons)],
-    });
+    await store.updateTicket(ticketId, { status: 'answered' });
+
+    try {
+      const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticketId);
+      await sendToUser(ctx.api, ticket.chat_id, ratingText, {
+        attachments: [Keyboard.inlineKeyboard(ratingButtons)],
+      });
+    } catch (err) {
+      console.error('rating message failed (non-fatal):', err.message);
+    }
     store.setUserState(ticket.user_id, 'rating_pending');
 
     await store.closeTicket(ticketId);
@@ -95,7 +120,13 @@ async function onAdminCommand(ctx, adminChatId) {
       return;
     }
 
-    await ctx.api.sendMessageToChat(ticket.chat_id, sendText);
+    try {
+      await sendToUser(ctx.api, ticket.chat_id, sendText);
+    } catch (err) {
+      console.error('sendToUser failed:', err.message, 'chat_id:', ticket.chat_id);
+      await ctx.api.sendMessageToChat(adminChatId, `❌ Не удалось отправить: ${err.message}`);
+      return;
+    }
     await ctx.api.sendMessageToChat(adminChatId, `📨 Сообщение пользователю ${targetUserId} отправлено.`);
     return;
   }
