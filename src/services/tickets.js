@@ -29,7 +29,13 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
     }
 
     const notification = formatter.buildAddMessageNotification(existing, question);
-    await ctx.api.sendMessageToChat(adminChatId, notification);
+    const replyButton = [[
+      Keyboard.button.callback('✍️ Ответить', `custom:${existing.ticket_id}`),
+      Keyboard.button.callback('✅ Решён', `ticket:resolve:${existing.ticket_id}`),
+    ]];
+    await ctx.api.sendMessageToChat(adminChatId, notification, {
+      attachments: [Keyboard.inlineKeyboard(replyButton)],
+    });
     store.setUserState(userId, 'ticket_open');
     return existing;
   }
