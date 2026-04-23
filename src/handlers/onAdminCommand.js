@@ -122,6 +122,35 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /message {ticketId} {text} — send to user regardless of ticket status
+  if (text.startsWith('/message ')) {
+    const parts = text.slice(9).trim().split(' ');
+    const ticketId = Number(parts[0]);
+    const msgText = parts.slice(1).join(' ').trim();
+
+    if (!ticketId || !msgText) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /message {id} {текст}');
+      return;
+    }
+
+    const ticket = await store.getTicket(ticketId);
+    if (!ticket) {
+      await ctx.api.sendMessageToChat(adminChatId, `⚠️ Тикет #${ticketId} не найден.`);
+      return;
+    }
+
+    try {
+      await sendToUser(ctx.api, ticket.chat_id, msgText);
+    } catch (err) {
+      console.error('sendToUser failed:', err.message, 'ticket:', ticketId, 'chat_id:', ticket.chat_id);
+      await ctx.api.sendMessageToChat(adminChatId, `❌ Не удалось отправить: ${err.message}`);
+      return;
+    }
+
+    await ctx.api.sendMessageToChat(adminChatId, `📨 Сообщение пользователю по тикету #${ticketId} отправлено.`);
+    return;
+  }
+
   // /send {userId} {text}
   if (text.startsWith('/send ')) {
     const parts = text.slice(6).trim().split(' ');
