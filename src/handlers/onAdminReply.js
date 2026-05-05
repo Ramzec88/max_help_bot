@@ -12,9 +12,16 @@ async function sendToUser(api, rawChatId, text, opts) {
     throw new Error(`bad chat_id: ${rawChatId}`);
   }
   console.log(`[admin→user] chat_id=${chatId} len=${text?.length || 0}`);
-  const result = await api.sendMessageToChat(chatId, text, opts);
-  console.log(`[admin→user] ok mid=${result?.body?.mid || 'n/a'}`);
-  return result;
+  try {
+    const result = await api.sendMessageToChat(chatId, text, opts);
+    console.log(`[admin→user] ok mid=${result?.body?.mid || 'n/a'}`);
+    return result;
+  } catch (err) {
+    if (err.message?.includes('error.dialog.suspended')) {
+      throw new Error('пользователь заблокировал бота или удалил чат — написать невозможно');
+    }
+    throw err;
+  }
 }
 
 async function onAdminReply(ctx, adminChatId) {
