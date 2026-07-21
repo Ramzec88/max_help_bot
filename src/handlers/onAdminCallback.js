@@ -198,3 +198,4 @@ async function onAdminCallback(ctx, adminChatId) {
 }
 
 module.exports = onAdminCallback;
+module.exports.CUSTOM_REPLY_TIMEOUT_MS = CUSTOM_REPLY_TIMEOUT_MS;

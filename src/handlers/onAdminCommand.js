@@ -31,6 +31,39 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /startreply {ticketId} — activate free reply mode for any ticket (open or closed)
+  if (text.startsWith('/startreply ')) {
+    const ticketId = Number(text.slice(12).trim());
+    if (!ticketId) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /startreply {id}');
+      return;
+    }
+    const ticket = await store.getTicket(ticketId);
+    if (!ticket) {
+      await ctx.api.sendMessageToChat(adminChatId, `⚠️ Тикет #${ticketId} не найден.`);
+      return;
+    }
+
+    const { CUSTOM_REPLY_TIMEOUT_MS } = require('./onAdminCallback');
+    const timeoutHandle = setTimeout(async () => {
+      const mode = await store.getAdminMode(adminId);
+      if (mode?.targetTicketId === ticketId) {
+        await store.clearAdminMode(adminId);
+        await ctx.api.sendMessageToChat(adminChatId, `⏱️ Режим свободного ответа для тикета #${ticketId} завершён автоматически (10 мин)`);
+      }
+    }, CUSTOM_REPLY_TIMEOUT_MS);
+
+    await store.setAdminMode(adminId, { mode: 'awaiting_reply', targetTicketId: ticketId, timeoutHandle });
+
+    const closedNote = ticket.status === 'answered' ? ' (тикет закрыт, но сообщения дойдут)' : '';
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `✍️ Режим ответа для тикета #${ticketId} активирован${closedNote}.\n` +
+      `Отправляйте текст и файлы по одному. После последнего напишите /done`
+    );
+    return;
+  }
+
   // /open — disable pause mode
   if (text === '/open') {
     store.clearPause();
