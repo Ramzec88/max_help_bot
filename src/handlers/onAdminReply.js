@@ -91,21 +91,25 @@ async function finishCustomReply(adminId, adminChatId, api) {
   const ticket = await store.getTicket(adminMode.targetTicketId);
   await store.clearAdminMode(adminId);
 
-  if (!ticket || ticket.status === 'answered') return;
+  if (!ticket) return;
 
-  await store.updateTicket(ticket.ticket_id, { status: 'answered' });
-  await store.closeTicket(ticket.ticket_id);
+  const alreadyClosed = ticket.status === 'answered';
 
-  // Send rating request to user
-  try {
-    const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);
-    await sendToUser(api, ticket.chat_id, ratingText, {
-      attachments: [Keyboard.inlineKeyboard(ratingButtons)],
-    });
-  } catch (err) {
-    console.error('rating message failed (non-fatal):', err.message);
+  if (!alreadyClosed) {
+    await store.updateTicket(ticket.ticket_id, { status: 'answered' });
+    await store.closeTicket(ticket.ticket_id);
+
+    // Send rating request only on first close
+    try {
+      const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);
+      await sendToUser(api, ticket.chat_id, ratingText, {
+        attachments: [Keyboard.inlineKeyboard(ratingButtons)],
+      });
+    } catch (err) {
+      console.error('rating message failed (non-fatal):', err.message);
+    }
+    store.setUserState(ticket.user_id, 'rating_pending');
   }
-  store.setUserState(ticket.user_id, 'rating_pending');
 
   // Update admin card
   if (ticket.admin_msg_id) {
@@ -117,7 +121,10 @@ async function finishCustomReply(adminId, adminChatId, api) {
     }
   }
 
-  await api.sendMessageToChat(adminChatId, `✅ Ответ завершён. Тикет #${ticket.ticket_id} закрыт.`);
+  const doneMsg = alreadyClosed
+    ? `✅ Сообщения отправлены пользователю по тикету #${ticket.ticket_id}.`
+    : `✅ Ответ завершён. Тикет #${ticket.ticket_id} закрыт.`;
+  await api.sendMessageToChat(adminChatId, doneMsg);
 }
 
 module.exports = { onAdminReply, finishCustomReply };

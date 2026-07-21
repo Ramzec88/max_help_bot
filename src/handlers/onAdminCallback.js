@@ -105,10 +105,6 @@ async function onAdminCallback(ctx, adminChatId) {
       await ctx.answerOnCallback({ notification: 'Тикет не найден.' });
       return;
     }
-    if (ticket.status === 'answered') {
-      await ctx.answerOnCallback({ notification: 'Ответ уже был отправлен.' });
-      return;
-    }
 
     // Non-fatal: remove buttons
     await safeEdit(ctx.api, ticket.admin_msg_id, { attachments: [] });
@@ -126,9 +122,10 @@ async function onAdminCallback(ctx, adminChatId) {
 
     await store.setAdminMode(adminId, { mode: 'awaiting_reply', targetTicketId: ticketId, timeoutHandle });
 
+    const closedNote = ticket.status === 'answered' ? ' (тикет закрыт, но сообщение дойдёт)' : '';
     await ctx.api.sendMessageToChat(
       adminChatId,
-      `✍️ Напишите ответ для пользователя #${ticketId} следующим сообщением.\n` +
+      `✍️ Напишите ответ для пользователя #${ticketId} следующим сообщением${closedNote}.\n` +
       `Если нужно отправить несколько файлов — отправляйте по одному.\n` +
       `После последнего напишите /done`
     );
