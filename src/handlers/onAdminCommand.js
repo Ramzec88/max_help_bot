@@ -33,7 +33,7 @@ async function onAdminCommand(ctx, adminChatId) {
 
   // /startreply {ticketId} — activate free reply mode for any ticket (open or closed)
   if (text.startsWith('/startreply ')) {
-    const ticketId = Number(text.slice(12).trim());
+    const ticketId = Number(text.slice(12).trim().split(/\s+/)[0]);
     if (!ticketId) {
       await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /startreply {id}');
       return;
