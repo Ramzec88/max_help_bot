@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const bot = require('./bot');
-const { PORT, BOT_TOKEN, WEBHOOK_URL, ADMIN_CHAT_ID, BOT_DESCRIPTION } = require('./config');
+const { PORT, BOT_TOKEN, WEBHOOK_URL, ADMIN_CHAT_ID } = require('./config');
 const onUserMessage = require('./handlers/onUserMessage');
 const onUserCallback = require('./handlers/onUserCallback');
 const onAdminCallback = require('./handlers/onAdminCallback');
@@ -54,12 +54,11 @@ async function init() {
   console.log('Чат с админами:', adminChatId);
 
   try {
-    await bot.api.editMyInfo({ description: BOT_DESCRIPTION });
     await bot.api.setMyCommands([
       { name: 'start', description: 'Выбрать проект и тему обращения' },
     ]);
   } catch (err) {
-    console.error('Не удалось обновить описание/команды бота (non-fatal):', err.message);
+    console.error('Не удалось обновить команды бота (non-fatal):', err.message);
   }
 
   bot.on('bot_started', async (ctx) => {
