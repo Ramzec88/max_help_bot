@@ -2,7 +2,9 @@ const store = require('../services/store');
 const { openTicket } = require('../services/tickets');
 const { extractMediaAttachments } = require('../services/media');
 const { handleStart } = require('../flows/start');
-const { STAFF_USER_IDS } = require('../config');
+const { STAFF_USER_IDS, PROJECTS } = require('../config');
+
+const PROJECT_LABELS = Object.fromEntries(PROJECTS.map((p) => [p.id, p.label]));
 
 async function onUserMessage(ctx, adminChatId) {
   if (ctx.user?.is_bot) return;
@@ -25,7 +27,8 @@ async function onUserMessage(ctx, adminChatId) {
     const lines = tickets.map((t) => {
       const age = Math.round((Date.now() - t.created_at.getTime()) / 60000);
       const user = t.username ? `@${t.username}` : t.user_name;
-      return `#${t.ticket_id} ${t.label} ${user} — ${t.last_question.slice(0, 50)} (${age} мин)`;
+      const projectLabel = PROJECT_LABELS[t.project] || t.project;
+      return `#${t.ticket_id} ${t.label} ${projectLabel} ${user} — ${t.last_question.slice(0, 50)} (${age} мин)`;
     });
     await ctx.reply(`📋 Открытые тикеты (${tickets.length}):\n\n${lines.join('\n')}`);
     return;

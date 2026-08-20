@@ -1,13 +1,18 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('../services/store');
+const { PROJECTS } = require('../config');
 
 const WELCOME_TEXT =
-  '🐻 Привет! Я помощник Мишки Макса. Помогу разобраться с покупками, ' +
-  'материалами и другими вопросами по нашим каналам.\n\nВыберите, что вас интересует:';
+  '🐻 Привет! Я бот поддержки детских проектов «Мишка Макс» и «Колянчик». ' +
+  'Помогу с покупками, доступом к материалам и другими вопросами.\n\nПо какому проекту у вас вопрос?';
 
-const MENU_TEXT = '🐻 Выберите, что вас интересует:';
+const PROJECT_PROMPT_TEXT = '🐻 По какому проекту у вас вопрос?';
 
-const WELCOME_BUTTONS = [
+const PROJECT_BUTTONS = PROJECTS.map((p) => [Keyboard.button.callback(p.label, `project:${p.id}`)]);
+
+const TOPIC_MENU_TEXT = '🐻 Выберите, что вас интересует:';
+
+const TOPIC_BUTTONS = [
   [Keyboard.button.callback('🛒 Где купить сценарий?', 'start:buy')],
   [Keyboard.button.callback('😟 Купила, но не работает', 'start:broken')],
   [Keyboard.button.callback('✍️ Хочу попросить составить', 'start:compose')],
@@ -16,13 +21,19 @@ const WELCOME_BUTTONS = [
 
 async function handleStart(ctx) {
   const userId = String(ctx.user.user_id);
-  const isFirstTime = !store.hasSeenStart(userId);
+  const isFirstTime = !(await store.hasSeenStart(userId));
 
-  await ctx.reply(isFirstTime ? WELCOME_TEXT : MENU_TEXT, {
-    attachments: [Keyboard.inlineKeyboard(WELCOME_BUTTONS)],
+  await ctx.reply(isFirstTime ? WELCOME_TEXT : PROJECT_PROMPT_TEXT, {
+    attachments: [Keyboard.inlineKeyboard(PROJECT_BUTTONS)],
   });
 
   store.markStartShown(userId);
 }
 
-module.exports = { handleStart };
+async function showTopicMenu(api, chatId) {
+  await api.sendMessageToChat(chatId, TOPIC_MENU_TEXT, {
+    attachments: [Keyboard.inlineKeyboard(TOPIC_BUTTONS)],
+  });
+}
+
+module.exports = { handleStart, showTopicMenu };

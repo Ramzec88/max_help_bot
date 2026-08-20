@@ -15,4 +15,12 @@ module.exports = {
   BOOSTY_URL: process.env.BOOSTY_URL || 'https://boosty.to/mishka_max/posts/cd8ce060-2eb2-4ac3-b075-c7f11b4e506f?share=post_link',
   LAVA_TOP_URL: process.env.LAVA_TOP_URL || 'https://app.lava.top/ru/products/7453f309-e575-459d-ace7-fee14b8dffa6?currency=RUB',
   HELPER_BOT_URL: process.env.HELPER_BOT_URL || 'https://max.ru/id320203526914_bot',
+  // Projects served by this bot — extend here when a new project's materials are ready
+  PROJECTS: [
+    { id: 'mishka_max', label: '🧸 Мишка Макс' },
+    { id: 'kolyanchik', label: '🎈 Колянчик' },
+  ],
+  BOT_DESCRIPTION:
+    '🐻 Бот поддержки детских проектов «Мишка Макс» и «Колянчик». ' +
+    'Помогу с покупками, доступом к материалам и другими вопросами.',
 };

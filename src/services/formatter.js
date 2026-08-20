@@ -1,4 +1,7 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
+const { PROJECTS } = require('../config');
+
+const PROJECT_LABELS = Object.fromEntries(PROJECTS.map((p) => [p.id, p.label]));
 
 const TOPIC_LABELS = {
   buy: 'Где купить',
@@ -33,6 +36,9 @@ function formatUserLine(userName, username, userId) {
 
 function buildContextLine(topic, platform, context) {
   const lines = [];
+  if (context.project) {
+    lines.push(`📌 Проект: ${PROJECT_LABELS[context.project] || context.project}`);
+  }
   const topicLabel = TOPIC_LABELS[topic] || topic;
   const platformLabel = platform !== 'unknown' ? ` • ${PLATFORM_LABELS[platform] || platform}` : '';
   lines.push(`🏷️ Тема: ${topicLabel}${platformLabel}`);

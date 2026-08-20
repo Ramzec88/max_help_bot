@@ -27,33 +27,16 @@ const PLATFORM_NAMES = {
   unknown: 'неизвестно',
 };
 
-async function callLLM(prompt) {
-  const response = await axios.post(
-    'https://openrouter.ai/api/v1/chat/completions',
-    {
-      model: OPENROUTER_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    },
-    {
-      headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
-      timeout: 15000,
-    }
-  );
-  return response.data.choices[0].message.content;
-}
+const PROJECT_INTROS = {
+  mishka_max:
+    'проекта «Мишка Макс» (mishka-max.ru).\n' +
+    'Мишка Макс — детский музыкально-образовательный проект для детей 1-5 лет: развивающие песни, видео, сценарии и материалы для воспитателей и родителей.',
+  kolyanchik:
+    'проекта «Колянчик».',
+};
 
-async function generateVariants(userMessage, { topic = 'other', platform = 'unknown' } = {}) {
-  const topicLabel = TOPIC_NAMES[topic] || topic;
-  const platformLabel = platform !== 'unknown' ? PLATFORM_NAMES[platform] || platform : '';
-
-  const prompt = `
-Ты — помощник службы поддержки проекта «Мишка Макс» (mishka-max.ru).
-Мишка Макс — детский музыкально-образовательный проект для детей 1-5 лет: развивающие песни, видео, сценарии и материалы для воспитателей и родителей.
-
-БАЗА ЗНАНИЙ:
-
-1. Где купить / как получить материалы:
+const PROJECT_KNOWLEDGE_BASE = {
+  mishka_max: `1. Где купить / как получить материалы:
    Есть 2 варианта:
    ✨ 1. В Telegram по подписке: https://t.me/mishka_max/245 — вы получаете не только одну песню, а сразу всю библиотеку материалов
    ✨ 2. Отдельно на Boosty: https://boosty.to/mishka_max — нажмите «Открыть пост», выберите подписку или разовую покупку, файлы появятся прямо в посте
@@ -73,7 +56,41 @@ async function generateVariants(userMessage, { topic = 'other', platform = 'unkn
    Уточнить сервис и конкретную проблему. Попросить скриншот.
 
 5. Не могу найти видео:
-   Уточнить какое именно видео, после чего отправить прямую ссылку.
+   Уточнить какое именно видео, после чего отправить прямую ссылку.`,
+  kolyanchik:
+    'Специфической базы знаний по проекту «Колянчик» пока нет. ' +
+    'Поблагодари пользователя за обращение, объясни, что уточнишь детали у команды и ответишь отдельно. ' +
+    'НЕ придумывай ссылки, цены, сроки или любые другие факты о проекте — их пока нет в базе знаний.',
+};
+
+async function callLLM(prompt) {
+  const response = await axios.post(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      model: OPENROUTER_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    },
+    {
+      headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 15000,
+    }
+  );
+  return response.data.choices[0].message.content;
+}
+
+async function generateVariants(userMessage, { topic = 'other', platform = 'unknown', project = 'mishka_max' } = {}) {
+  const topicLabel = TOPIC_NAMES[topic] || topic;
+  const platformLabel = platform !== 'unknown' ? PLATFORM_NAMES[platform] || platform : '';
+  const projectIntro = PROJECT_INTROS[project] || PROJECT_INTROS.mishka_max;
+  const knowledgeBase = PROJECT_KNOWLEDGE_BASE[project] || PROJECT_KNOWLEDGE_BASE.mishka_max;
+
+  const prompt = `
+Ты — помощник службы поддержки ${projectIntro}
+
+БАЗА ЗНАНИЙ:
+
+${knowledgeBase}
 
 ТЕМА ОБРАЩЕНИЯ: ${topicLabel}
 ${platformLabel ? `ПЛАТФОРМА: ${platformLabel}` : ''}

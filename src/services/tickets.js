@@ -40,13 +40,15 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
     return existing;
   }
 
+  const project = context?.project || 'mishka_max';
+
   // Generate AI variants
-  const { variants, label } = await ai.generateVariants(question, { topic, platform });
+  const { variants, label } = await ai.generateVariants(question, { topic, platform, project });
 
   // Create ticket in store
   const ticket = await store.createTicket({
     user_id: userId, chat_id: chatId, user_name: userName, username,
-    topic, platform: platform || 'unknown', context: context || {},
+    topic, platform: platform || 'unknown', context: { ...(context || {}), project },
     last_question: question,
     ai_variants: variants, label,
   });

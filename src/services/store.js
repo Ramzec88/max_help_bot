@@ -108,6 +108,7 @@ function _mapRow(row) {
     last_question: row.last_question || '',
     ai_variants: row.ai_variants || [],
     label: (row.context && row.context.label) || '🟡',
+    project: (row.context && row.context.project) || 'mishka_max',
     admin_msg_id: row.admin_msg_id || null,
     status: row.status,
     rating: row.rating,

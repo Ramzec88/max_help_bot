@@ -4,6 +4,7 @@ const formatter = require('../services/formatter');
 const { showBuyFaq } = require('../flows/faqBuy');
 const { showStep1, showStep2Lava, showStep2Boosty, showStep3 } = require('../flows/faqBroken');
 const { showComposeFaq } = require('../flows/faqCompose');
+const { showTopicMenu } = require('../flows/start');
 
 // In callback context ctx.chatId is undefined — use user_id as personal chat id
 function getChatId(ctx) {
@@ -20,6 +21,22 @@ async function onUserCallback(ctx, adminChatId) {
 
   const userId = String(ctx.callback.user.user_id);
   const chatId = getChatId(ctx);
+
+  // ── Project selection ───────────────────────────────────────────────────
+
+  if (payload.startsWith('project:')) {
+    const project = payload.split(':')[1];
+    await ctx.answerOnCallback({ notification: '' });
+
+    if (project === 'mishka_max') {
+      store.setUserState(userId, 'idle', { project });
+      await showTopicMenu(ctx.api, chatId);
+    } else {
+      store.setUserState(userId, 'awaiting_ticket', { project, topic: 'other', platform: 'unknown' });
+      await send(ctx, 'Напишите ваш вопрос — я передам его команде 🐻👇');
+    }
+    return;
+  }
 
   // ── /start menu buttons ───────────────────────────────────────────────────
 
