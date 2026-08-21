@@ -62,11 +62,14 @@ async function onAdminReply(ctx, adminChatId) {
     return;
   }
 
+  let sentSomething = false;
+
   try {
     // Forward text to user
     if (replyText) {
       await sleep(DELAY_MS);
       await sendToUser(ctx.api, ticket.chat_id, replyText);
+      sentSomething = true;
     }
 
     // Forward media to user (each with 300ms delay)
@@ -78,13 +81,14 @@ async function onAdminReply(ctx, adminChatId) {
       }
       await sleep(DELAY_MS);
       await sendToUser(ctx.api, ticket.chat_id, '', { attachments: [outgoing] });
+      sentSomething = true;
     }
   } catch (err) {
     console.error('admin reply send failed:', err.message, 'ticket:', ticket.ticket_id, 'chat_id:', ticket.chat_id);
-    await ctx.api.sendMessageToChat(
-      adminChatId,
-      `❌ Не удалось отправить сообщение пользователю (тикет #${ticket.ticket_id}): ${err.message}`
-    );
+    const prefix = sentSomething
+      ? `⚠️ Часть сообщения не отправлена пользователю (тикет #${ticket.ticket_id})`
+      : `❌ Не удалось отправить сообщение пользователю (тикет #${ticket.ticket_id})`;
+    await ctx.api.sendMessageToChat(adminChatId, `${prefix}: ${err.message}`);
     return;
   }
 

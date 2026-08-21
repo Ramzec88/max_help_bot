@@ -1,5 +1,10 @@
-// Типы медиа, которые можно переслать по токену
-const MEDIA_TYPES = ['image', 'video', 'audio', 'file', 'sticker', 'location', 'share'];
+// Типы медиа, которые можно переслать по токену.
+// 'share' сюда намеренно не входит: это авто-превью ссылки, которое клиент
+// MAX сам прикрепляет к сообщению с URL в тексте — сама ссылка уже есть в
+// тексте и будет заново отрисована превью на стороне получателя, а
+// пересылать такое вложение отдельно нельзя (нет валидного token/url для
+// исходящего запроса — падает с errors.send-message.empty).
+const MEDIA_TYPES = ['image', 'video', 'audio', 'file', 'sticker', 'location'];
 
 const MEDIA_LABELS = {
   image: 'изображение',
@@ -8,7 +13,6 @@ const MEDIA_LABELS = {
   file: 'файл',
   sticker: 'стикер',
   location: 'геолокацию',
-  share: 'ссылку',
 };
 
 // Извлечь медиа-вложения из входящего сообщения (без inline_keyboard)
@@ -43,9 +47,6 @@ function toOutgoingAttachment(att) {
     case 'location':
       if (att.latitude == null || att.longitude == null) return null;
       return { type: 'location', latitude: att.latitude, longitude: att.longitude };
-    case 'share':
-      if (!att.payload?.token && !att.payload?.url) return null;
-      return { type: 'share', payload: { token: att.payload?.token, url: att.payload?.url } };
     default:
       return null;
   }
