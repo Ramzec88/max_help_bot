@@ -40,8 +40,11 @@ async function onAdminReply(ctx, adminChatId) {
     return;
   }
 
-  const replyText = ctx.message?.body?.text || '';
+  const rawText = ctx.message?.body?.text || '';
+  const replyText = rawText.trim();
   const mediaAttachments = extractMediaAttachments(ctx.message);
+
+  console.log(`[onAdminReply] raw="${JSON.stringify(rawText)}" trimmed_len=${replyText.length} media=${mediaAttachments.length}`);
 
   if (!replyText && mediaAttachments.length === 0) return;
 
