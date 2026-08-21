@@ -2,6 +2,7 @@ const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('./store');
 const ai = require('./ai');
 const formatter = require('./formatter');
+const { toOutgoingAttachment } = require('./media');
 
 async function openTicket(ctx, adminChatId, { topic, platform, context, question, mediaAttachments }) {
   const userId = String(ctx.user.user_id);
@@ -23,8 +24,9 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
     await store.addMessageToTicket(existing.ticket_id, question);
 
     if (mediaAttachments?.length > 0) {
+      const outgoing = mediaAttachments.map(toOutgoingAttachment).filter(Boolean);
       await ctx.api.sendMessageToChat(adminChatId, `👤 ${userName}: ${question || ''}`, {
-        attachments: mediaAttachments,
+        attachments: outgoing,
       });
     }
 
@@ -60,7 +62,8 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   const hasMedia = mediaAttachments?.length > 0;
   if (hasMedia) {
     const caption = question ? `👤 ${userName}: ${question}` : `👤 ${userName}`;
-    await ctx.api.sendMessageToChat(adminChatId, caption, { attachments: mediaAttachments });
+    const outgoing = mediaAttachments.map(toOutgoingAttachment).filter(Boolean);
+    await ctx.api.sendMessageToChat(adminChatId, caption, { attachments: outgoing });
   }
 
   // Send ticket card with buttons

@@ -1,7 +1,7 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
-const { extractMediaAttachments } = require('../services/media');
+const { extractMediaAttachments, toOutgoingAttachment } = require('../services/media');
 
 const DELAY_MS = 300;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,8 +68,13 @@ async function onAdminReply(ctx, adminChatId) {
 
     // Forward media to user (each with 300ms delay)
     for (const att of mediaAttachments) {
+      const outgoing = toOutgoingAttachment(att);
+      if (!outgoing) {
+        console.error('skipping unforwardable attachment:', JSON.stringify(att));
+        continue;
+      }
       await sleep(DELAY_MS);
-      await sendToUser(ctx.api, ticket.chat_id, '', { attachments: [att] });
+      await sendToUser(ctx.api, ticket.chat_id, '', { attachments: [outgoing] });
     }
   } catch (err) {
     console.error('admin reply send failed:', err.message, 'ticket:', ticket.ticket_id, 'chat_id:', ticket.chat_id);

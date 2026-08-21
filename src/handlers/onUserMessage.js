@@ -1,6 +1,6 @@
 const store = require('../services/store');
 const { openTicket } = require('../services/tickets');
-const { extractMediaAttachments } = require('../services/media');
+const { extractMediaAttachments, toOutgoingAttachment } = require('../services/media');
 const { handleStart } = require('../flows/start');
 const { STAFF_USER_IDS, PROJECTS } = require('../config');
 
@@ -61,8 +61,9 @@ async function onUserMessage(ctx, adminChatId) {
       await store.addMessageToTicket(ticket.ticket_id, question);
 
       if (mediaAttachments.length > 0) {
+        const outgoing = mediaAttachments.map(toOutgoingAttachment).filter(Boolean);
         await ctx.api.sendMessageToChat(adminChatId, `👤 ${ticket.user_name}: ${text || ''}`, {
-          attachments: mediaAttachments,
+          attachments: outgoing,
         });
       }
       if (text) {
