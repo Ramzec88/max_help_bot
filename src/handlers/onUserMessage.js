@@ -28,7 +28,7 @@ async function onUserMessage(ctx, adminChatId) {
       const age = Math.round((Date.now() - t.created_at.getTime()) / 60000);
       const user = t.username ? `@${t.username}` : t.user_name;
       const projectLabel = PROJECT_LABELS[t.project] || t.project;
-      return `#${t.ticket_id} ${t.label} ${projectLabel} ${user} — ${t.last_question.slice(0, 50)} (${age} мин)`;
+      return `#${t.ticket_id} ${t.label} ${projectLabel} ${user} (id: ${t.user_id}) — ${t.last_question.slice(0, 50)} (${age} мин)`;
     });
     await ctx.reply(`📋 Открытые тикеты (${tickets.length}):\n\n${lines.join('\n')}`);
     return;

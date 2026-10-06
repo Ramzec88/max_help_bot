@@ -30,8 +30,8 @@ function formatDurationMin(from, to) {
 }
 
 function formatUserLine(userName, username, userId) {
-  if (username) return `[${userName}](https://max.ru/${username})`;
-  return `${userName} (ссылка недоступна)`;
+  if (username) return `[${userName}](https://max.ru/${username}) • id: ${userId}`;
+  return `${userName} (ссылка недоступна) • id: ${userId}`;
 }
 
 function buildContextLine(topic, platform, context) {
