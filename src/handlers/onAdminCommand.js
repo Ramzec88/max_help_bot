@@ -166,6 +166,32 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /find {имя или @username} — найти user_id по истории всех обращений
+  if (text.startsWith('/find ')) {
+    const query = text.slice(6).trim();
+    if (!query) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /find {имя или @username}');
+      return;
+    }
+
+    const users = await store.findUsersByName(query);
+    if (users.length === 0) {
+      await ctx.api.sendMessageToChat(adminChatId, `🔍 Никого не нашлось по запросу «${query}».`);
+      return;
+    }
+
+    const lines = users.map((t) => {
+      const user = t.username ? `@${t.username}` : t.user_name;
+      const lastSeen = t.created_at.toLocaleDateString('ru-RU');
+      return `${user} — id: ${t.user_id} (последнее обращение: ${lastSeen}, #${t.ticket_id})`;
+    });
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `🔍 Найдено (${users.length}):\n\n${lines.join('\n')}`
+    );
+    return;
+  }
+
   // /message {ticketId} {text} — send to user regardless of ticket status
   if (text.startsWith('/message ')) {
     const parts = text.slice(9).trim().split(' ');

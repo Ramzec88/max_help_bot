@@ -218,8 +218,33 @@ async function getOpenTickets() {
   return data.map(_mapRow);
 }
 
+// Search across all tickets (open and closed) by name or @username substring.
+// Two separate ilike queries instead of .or() — a query containing commas or
+// parens would otherwise break PostgREST's or-filter syntax.
+async function findUsersByName(query) {
+  const clean = query.trim().replace(/^@/, '');
+  if (!clean) return [];
+
+  const [byName, byUsername] = await Promise.all([
+    supabase.from('support_dialogs').select('*').ilike('user_name', `%${clean}%`)
+      .order('created_at', { ascending: false }).limit(20),
+    supabase.from('support_dialogs').select('*').ilike('username', `%${clean}%`)
+      .order('created_at', { ascending: false }).limit(20),
+  ]);
+
+  const rows = [...(byName.data || []), ...(byUsername.data || [])];
+  if (rows.length === 0) return [];
+
+  // Dedupe by user_id, keep most recent ticket per user
+  const seen = new Map();
+  for (const row of data.map(_mapRow)) {
+    if (!seen.has(row.user_id)) seen.set(row.user_id, row);
+  }
+  return [...seen.values()];
+}
+
 module.exports = {
-  createTicket, getTicket, getOpenTicketByUserId, getOpenTickets, updateTicket, closeTicket, addMessageToTicket,
+  createTicket, getTicket, getOpenTicketByUserId, getOpenTickets, findUsersByName, updateTicket, closeTicket, addMessageToTicket,
   getUserState, setUserState, resetUserState, hasSeenStart, markStartShown,
   setAdminMode, getAdminMode, clearAdminMode,
   setPause, clearPause, isPaused, getPauseUntil,
