@@ -237,7 +237,7 @@ async function findUsersByName(query) {
 
   // Dedupe by user_id, keep most recent ticket per user
   const seen = new Map();
-  for (const row of data.map(_mapRow)) {
+  for (const row of rows.map(_mapRow)) {
     if (!seen.has(row.user_id)) seen.set(row.user_id, row);
   }
   return [...seen.values()];

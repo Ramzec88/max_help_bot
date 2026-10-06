@@ -85,6 +85,11 @@ async function init() {
       }
     } catch (err) {
       console.error('onCallback error:', err.message);
+      try {
+        await ctx.answerOnCallback({ notification: '⚠️ Ошибка, попробуйте ещё раз' });
+      } catch (notifyErr) {
+        console.error('failed to notify about onCallback error:', notifyErr.message);
+      }
     }
   });
 
@@ -104,6 +109,15 @@ async function init() {
       }
     } catch (err) {
       console.error('onMessage error:', err.message);
+      try {
+        if (ctx.chatId === adminChatId) {
+          await bot.api.sendMessageToChat(adminChatId, `⚠️ Ошибка обработки команды: ${err.message}`);
+        } else {
+          await ctx.reply('🐻 Что-то пошло не так на нашей стороне. Попробуйте ещё раз чуть позже.');
+        }
+      } catch (notifyErr) {
+        console.error('failed to notify about onMessage error:', notifyErr.message);
+      }
     }
   });
 
