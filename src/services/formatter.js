@@ -5,6 +5,7 @@ const PROJECT_LABELS = Object.fromEntries(PROJECTS.map((p) => [p.id, p.label]));
 
 const TOPIC_LABELS = {
   buy: 'Где купить',
+  renew: 'Продление подписки',
   broken: 'Не работает покупка',
   compose: 'Хочу составить',
   compose_idea: 'Идея / запрос',

@@ -14,6 +14,7 @@ const TOPIC_MENU_TEXT = '🐻 Выберите, что вас интересуе
 
 const TOPIC_BUTTONS = [
   [Keyboard.button.callback('🛒 Где купить сценарий?', 'start:buy')],
+  [Keyboard.button.callback('🔄 Продлить / оформить подписку', 'start:renew')],
   [Keyboard.button.callback('😟 Купила, но не работает', 'start:broken')],
   [Keyboard.button.callback('✍️ Хочу попросить составить', 'start:compose')],
   [Keyboard.button.callback('💬 Другой вопрос', 'start:other')],

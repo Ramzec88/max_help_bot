@@ -4,6 +4,7 @@ const formatter = require('../services/formatter');
 const { showBuyFaq } = require('../flows/faqBuy');
 const { showStep1, showStep2Lava, showStep2Boosty, showStep3 } = require('../flows/faqBroken');
 const { showComposeFaq } = require('../flows/faqCompose');
+const { showRenewFaq } = require('../flows/faqRenew');
 const { showTopicMenu } = require('../flows/start');
 
 // In callback context ctx.chatId is undefined — use user_id as personal chat id
@@ -52,6 +53,12 @@ async function onUserCallback(ctx, adminChatId) {
     return;
   }
 
+  if (payload === 'start:renew') {
+    await ctx.answerOnCallback({ notification: '' });
+    await showRenewFaq(ctx.api, chatId);
+    return;
+  }
+
   if (payload === 'start:compose') {
     await ctx.answerOnCallback({ notification: '' });
     await showComposeFaq(ctx.api, chatId);
@@ -77,6 +84,22 @@ async function onUserCallback(ctx, adminChatId) {
   if (payload === 'faq_buy:no') {
     await ctx.answerOnCallback({ notification: '' });
     store.setUserState(userId, 'awaiting_ticket', { topic: 'buy' });
+    await send(ctx, 'Напишите ваш вопрос — я передам его команде 🐻👇');
+    return;
+  }
+
+  // ── Renew subscription FAQ ───────────────────────────────────────────────
+
+  if (payload === 'faq_renew:yes') {
+    await ctx.answerOnCallback({ notification: '' });
+    store.resetUserState(userId);
+    await send(ctx, 'Отлично! Если появятся вопросы — пишите 🐻');
+    return;
+  }
+
+  if (payload === 'faq_renew:no') {
+    await ctx.answerOnCallback({ notification: '' });
+    store.setUserState(userId, 'awaiting_ticket', { topic: 'renew' });
     await send(ctx, 'Напишите ваш вопрос — я передам его команде 🐻👇');
     return;
   }
