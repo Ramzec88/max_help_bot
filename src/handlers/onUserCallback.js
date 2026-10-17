@@ -21,6 +21,10 @@ async function onUserCallback(ctx, adminChatId) {
   if (!payload) return;
 
   const userId = String(ctx.callback.user.user_id);
+  if (await store.isBlocked(userId)) {
+    await ctx.answerOnCallback({ notification: '' });
+    return;
+  }
   const chatId = getChatId(ctx);
 
   // ── Project selection ───────────────────────────────────────────────────

@@ -192,6 +192,38 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /block {userId} [причина] — остановить обработку сообщений от пользователя
+  if (text.startsWith('/block ')) {
+    const parts = text.slice(7).trim().split(/\s+/);
+    const targetUserId = parts[0];
+    const reason = parts.slice(1).join(' ').trim();
+
+    if (!targetUserId) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /block {user_id} [причина]');
+      return;
+    }
+
+    await store.blockUser(targetUserId, reason, adminId);
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `🚫 Пользователь ${targetUserId} заблокирован${reason ? ` (${reason})` : ''}. Его сообщения больше не создают тикеты.`
+    );
+    return;
+  }
+
+  // /unblock {userId}
+  if (text.startsWith('/unblock ')) {
+    const targetUserId = text.slice(9).trim().split(/\s+/)[0];
+    if (!targetUserId) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /unblock {user_id}');
+      return;
+    }
+
+    await store.unblockUser(targetUserId);
+    await ctx.api.sendMessageToChat(adminChatId, `✅ Пользователь ${targetUserId} разблокирован.`);
+    return;
+  }
+
   // /message {ticketId} {text} — send to user regardless of ticket status
   if (text.startsWith('/message ')) {
     const parts = text.slice(9).trim().split(' ');

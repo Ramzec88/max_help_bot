@@ -22,6 +22,8 @@ const TOPIC_BUTTONS = [
 
 async function handleStart(ctx) {
   const userId = String(ctx.user.user_id);
+  if (await store.isBlocked(userId)) return;
+
   const isFirstTime = !(await store.hasSeenStart(userId));
 
   await ctx.reply(isFirstTime ? WELCOME_TEXT : PROJECT_PROMPT_TEXT, {

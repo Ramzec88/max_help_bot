@@ -243,9 +243,43 @@ async function findUsersByName(query) {
   return [...seen.values()];
 }
 
+// ── Blocked users (blocked_users table) ───────────────────────────────────────
+
+const blockedCache = new Set(); // in-memory cache so isBlocked() doesn't hit the DB on every message
+
+async function blockUser(userId, reason, adminId) {
+  const id = String(userId);
+  const { error } = await supabase
+    .from('blocked_users')
+    .upsert({ user_id: id, reason: reason || null, blocked_by: String(adminId) }, { onConflict: 'user_id' });
+  if (error) throw new Error(`blockUser: ${error.message}`);
+  blockedCache.add(id);
+}
+
+async function unblockUser(userId) {
+  const id = String(userId);
+  await supabase.from('blocked_users').delete().eq('user_id', id);
+  blockedCache.delete(id);
+}
+
+async function isBlocked(userId) {
+  const id = String(userId);
+  if (blockedCache.has(id)) return true;
+
+  const { data, error } = await supabase
+    .from('blocked_users')
+    .select('user_id')
+    .eq('user_id', id)
+    .maybeSingle();
+  if (error || !data) return false;
+  blockedCache.add(id);
+  return true;
+}
+
 module.exports = {
   createTicket, getTicket, getOpenTicketByUserId, getOpenTickets, findUsersByName, updateTicket, closeTicket, addMessageToTicket,
   getUserState, setUserState, resetUserState, hasSeenStart, markStartShown,
   setAdminMode, getAdminMode, clearAdminMode,
   setPause, clearPause, isPaused, getPauseUntil,
+  blockUser, unblockUser, isBlocked,
 };

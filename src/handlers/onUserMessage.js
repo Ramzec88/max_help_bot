@@ -10,6 +10,8 @@ async function onUserMessage(ctx, adminChatId) {
   if (ctx.user?.is_bot) return;
 
   const userId = String(ctx.user.user_id);
+  if (await store.isBlocked(userId)) return;
+
   const text = ctx.message?.body?.text || '';
   const mediaAttachments = extractMediaAttachments(ctx.message);
 
