@@ -192,6 +192,12 @@ async function onAdminCommand(ctx, adminChatId) {
     return;
   }
 
+  // /kb — knowledge base management (add/edit/list/show/delete)
+  if (text.startsWith('/kb ') || text === '/kb') {
+    await handleKbCommand(ctx, adminChatId, adminId, text);
+    return;
+  }
+
   // /block {userId} [причина] — остановить обработку сообщений от пользователя
   if (text.startsWith('/block ')) {
     const parts = text.slice(7).trim().split(/\s+/);
@@ -280,6 +286,86 @@ async function onAdminCommand(ctx, adminChatId) {
     await ctx.api.sendMessageToChat(adminChatId, `📨 Сообщение пользователю ${targetUserId} отправлено.`);
     return;
   }
+}
+
+async function handleKbCommand(ctx, adminChatId, adminId, text) {
+  const rest = text.slice(3).trim(); // after "/kb"
+  const [sub, ...restParts] = rest.split(/\s+/);
+  const arg = restParts.join(' ').trim();
+
+  if (sub === 'add') {
+    if (!arg) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /kb add {тема}');
+      return;
+    }
+    store.setKbDraft(adminId, { step: 'awaiting_draft', action: 'add', topic: arg, project: 'mishka_max' });
+    await ctx.api.sendMessageToChat(adminChatId, `✍️ Тема «${arg}». Пришлите текст ответа следующим сообщением — я его немного причешу и покажу на подтверждение.`);
+    return;
+  }
+
+  if (sub === 'edit') {
+    const id = Number(arg.split(/\s+/)[0]);
+    if (!id) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /kb edit {id}');
+      return;
+    }
+    const entry = await store.getKnowledgeEntry(id);
+    if (!entry) {
+      await ctx.api.sendMessageToChat(adminChatId, `⚠️ Запись #${id} не найдена.`);
+      return;
+    }
+    store.setKbDraft(adminId, { step: 'awaiting_draft', action: 'edit', kbId: id, topic: entry.topic, project: entry.project });
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `✍️ Редактирование #${id} «${entry.topic}».\n\nТекущий текст:\n${entry.answer}\n\nПришлите новый текст следующим сообщением.`
+    );
+    return;
+  }
+
+  if (sub === 'list' || !sub) {
+    const entries = await store.listKnowledgeEntries('mishka_max');
+    if (entries.length === 0) {
+      await ctx.api.sendMessageToChat(adminChatId, '📚 База знаний пуста.');
+      return;
+    }
+    const lines = entries.map((e) => `#${e.id} ${e.topic}`);
+    await ctx.api.sendMessageToChat(
+      adminChatId,
+      `📚 База знаний (${entries.length}):\n\n${lines.join('\n')}\n\nПолный текст: /kb show {id}`
+    );
+    return;
+  }
+
+  if (sub === 'show') {
+    const id = Number(arg.split(/\s+/)[0]);
+    if (!id) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /kb show {id}');
+      return;
+    }
+    const entry = await store.getKnowledgeEntry(id);
+    if (!entry) {
+      await ctx.api.sendMessageToChat(adminChatId, `⚠️ Запись #${id} не найдена.`);
+      return;
+    }
+    await ctx.api.sendMessageToChat(adminChatId, `📖 #${entry.id} ${entry.topic}\n\n${entry.answer}`);
+    return;
+  }
+
+  if (sub === 'delete') {
+    const id = Number(arg.split(/\s+/)[0]);
+    if (!id) {
+      await ctx.api.sendMessageToChat(adminChatId, '⚠️ Использование: /kb delete {id}');
+      return;
+    }
+    const ok = await store.deleteKnowledgeEntry(id);
+    await ctx.api.sendMessageToChat(adminChatId, ok ? `🗑 Запись #${id} удалена.` : `⚠️ Запись #${id} не найдена.`);
+    return;
+  }
+
+  await ctx.api.sendMessageToChat(
+    adminChatId,
+    '⚠️ Команды базы знаний: /kb add {тема}, /kb edit {id}, /kb list, /kb show {id}, /kb delete {id}'
+  );
 }
 
 function parsePauseDuration(arg) {

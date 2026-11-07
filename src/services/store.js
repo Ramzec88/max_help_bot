@@ -8,6 +8,7 @@ const supabase = require('./supabase');
 const userStartShown = new Set();
 const userState = new Map();       // userId → { state, context }
 const timeoutHandles = new Map();  // adminId → timeoutHandle
+const kbDrafts = new Map();        // adminId → { step, action, topic, project, kbId, originalDraft, polishedDraft }
 let _pauseUntil = null;
 
 // ── Tickets (support_dialogs) ─────────────────────────────────────────────────
@@ -288,10 +289,81 @@ async function isBlocked(userId) {
   return true;
 }
 
+// ── Knowledge base (knowledge_base table) ─────────────────────────────────────
+
+async function listKnowledgeEntries(project) {
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .select('*')
+    .eq('project', project)
+    .eq('active', true)
+    .order('id', { ascending: true });
+  if (error || !data) return [];
+  return data;
+}
+
+async function getKnowledgeEntry(id) {
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .select('*')
+    .eq('id', Number(id))
+    .maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
+async function addKnowledgeEntry({ project, topic, answer }) {
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .insert({ project: project || 'mishka_max', topic, answer })
+    .select()
+    .single();
+  if (error) throw new Error(`addKnowledgeEntry: ${error.message}`);
+  return data;
+}
+
+async function updateKnowledgeEntry(id, { topic, answer }) {
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .update({ topic, answer, updated_at: new Date().toISOString() })
+    .eq('id', Number(id))
+    .select()
+    .single();
+  if (error) throw new Error(`updateKnowledgeEntry: ${error.message}`);
+  return data;
+}
+
+async function deleteKnowledgeEntry(id) {
+  const { data, error } = await supabase
+    .from('knowledge_base')
+    .delete()
+    .eq('id', Number(id))
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`deleteKnowledgeEntry: ${error.message}`);
+  return !!data;
+}
+
+// ── Knowledge base draft state (in-memory, add/edit via bot) ─────────────────
+
+function setKbDraft(adminId, data) {
+  kbDrafts.set(String(adminId), data);
+}
+
+function getKbDraft(adminId) {
+  return kbDrafts.get(String(adminId)) || null;
+}
+
+function clearKbDraft(adminId) {
+  kbDrafts.delete(String(adminId));
+}
+
 module.exports = {
   createTicket, getTicket, getTicketByNotifyMsgId, getOpenTicketByUserId, getOpenTickets, findUsersByName, updateTicket, closeTicket, addMessageToTicket,
   getUserState, setUserState, resetUserState, hasSeenStart, markStartShown,
   setAdminMode, getAdminMode, clearAdminMode,
   setPause, clearPause, isPaused, getPauseUntil,
   blockUser, unblockUser, isBlocked,
+  listKnowledgeEntries, getKnowledgeEntry, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry,
+  setKbDraft, getKbDraft, clearKbDraft,
 };

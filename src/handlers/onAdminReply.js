@@ -1,6 +1,7 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const store = require('../services/store');
 const formatter = require('../services/formatter');
+const ai = require('../services/ai');
 const { extractMediaAttachments, toOutgoingAttachment } = require('../services/media');
 
 const DELAY_MS = 300;
@@ -26,6 +27,14 @@ async function sendToUser(api, rawChatId, text, opts) {
 
 async function onAdminReply(ctx, adminChatId) {
   const adminId = String(ctx.user.user_id);
+
+  // Knowledge base draft: if admin is in the middle of /kb add or /kb edit,
+  // this message is the draft text they want polished and saved.
+  const kbDraft = store.getKbDraft(adminId);
+  if (kbDraft?.step === 'awaiting_draft') {
+    const handled = await handleKbDraftText(ctx, adminChatId, adminId, kbDraft);
+    if (handled) return;
+  }
 
   // Swipe-reply: MAX's native reply-to-message feature. If the admin swiped
   // a ticket's card or notification and replied directly, resolve the
@@ -104,6 +113,43 @@ async function onAdminReply(ctx, adminChatId) {
 
   // Confirm in admin chat (silent — don't close mode yet, wait for /done)
   await ctx.api.sendMessageToChat(adminChatId, `📨 Отправлено пользователю. Продолжайте или напишите /done`);
+}
+
+// Captures an admin's draft text for /kb add or /kb edit, asks the AI to
+// polish it, and shows both versions with buttons to pick one and save.
+async function handleKbDraftText(ctx, adminChatId, adminId, kbDraft) {
+  const draftText = (ctx.message?.body?.text || '').trim();
+  if (!draftText) return false;
+
+  await ctx.api.sendMessageToChat(adminChatId, '🤖 Редактирую...');
+
+  let polished;
+  try {
+    polished = await ai.polishAnswer(draftText);
+  } catch (err) {
+    console.error('polishAnswer failed, using draft as-is:', err.message);
+    polished = draftText;
+  }
+
+  store.setKbDraft(adminId, { ...kbDraft, step: 'awaiting_confirm', originalDraft: draftText, polishedDraft: polished });
+
+  const buttons = [
+    [Keyboard.button.callback('✅ Сохранить отредактированный', 'kb:save:polished')],
+    [Keyboard.button.callback('📝 Оставить как написал(а)', 'kb:save:original')],
+    [
+      Keyboard.button.callback('✏️ Написать заново', 'kb:redo'),
+      Keyboard.button.callback('❌ Отмена', 'kb:cancel'),
+    ],
+  ];
+
+  await ctx.api.sendMessageToChat(
+    adminChatId,
+    `🤖 Отредактированный вариант:\n\n${polished}\n\n` +
+    `—————\n📝 Ваш исходный текст:\n${draftText}`,
+    { attachments: [Keyboard.inlineKeyboard(buttons)] }
+  );
+
+  return true;
 }
 
 // Returns true if the swiped-to message belonged to a ticket and was handled

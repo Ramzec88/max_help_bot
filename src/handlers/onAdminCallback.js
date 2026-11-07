@@ -195,6 +195,54 @@ async function onAdminCallback(ctx, adminChatId) {
     await ctx.answerOnCallback({ notification: `🔄 Тикет #${ticketId} возвращён в очередь` });
     return;
   }
+
+  // ── Knowledge base draft confirmation: kb:save:polished|original, kb:redo, kb:cancel ──
+
+  if (payload.startsWith('kb:')) {
+    const [, action, variant] = payload.split(':');
+    const draft = store.getKbDraft(adminId);
+
+    if (!draft || draft.step !== 'awaiting_confirm') {
+      await ctx.answerOnCallback({ notification: 'Сессия редактирования устарела.' });
+      return;
+    }
+
+    if (action === 'cancel') {
+      store.clearKbDraft(adminId);
+      await ctx.answerOnCallback({ notification: 'Отменено.' });
+      await ctx.api.sendMessageToChat(adminChatId, '❌ Добавление/редактирование ответа отменено.');
+      return;
+    }
+
+    if (action === 'redo') {
+      store.setKbDraft(adminId, { ...draft, step: 'awaiting_draft' });
+      await ctx.answerOnCallback({ notification: '' });
+      await ctx.api.sendMessageToChat(adminChatId, `✍️ Пришлите новый текст для «${draft.topic}».`);
+      return;
+    }
+
+    if (action === 'save') {
+      const finalText = variant === 'polished' ? draft.polishedDraft : draft.originalDraft;
+
+      try {
+        if (draft.action === 'edit') {
+          await store.updateKnowledgeEntry(draft.kbId, { topic: draft.topic, answer: finalText });
+        } else {
+          await store.addKnowledgeEntry({ project: draft.project, topic: draft.topic, answer: finalText });
+        }
+      } catch (err) {
+        console.error('kb save failed:', err.message);
+        await ctx.answerOnCallback({ notification: '❌ Ошибка сохранения' });
+        await ctx.api.sendMessageToChat(adminChatId, `❌ Не удалось сохранить: ${err.message}`);
+        return;
+      }
+
+      store.clearKbDraft(adminId);
+      await ctx.answerOnCallback({ notification: '✅ Сохранено!' });
+      await ctx.api.sendMessageToChat(adminChatId, `✅ Ответ по теме «${draft.topic}» сохранён в базе знаний.`);
+      return;
+    }
+  }
 }
 
 module.exports = onAdminCallback;

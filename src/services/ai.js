@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { OPENROUTER_API_KEY, OPENROUTER_MODEL, SUBSCRIPTION_BOT_URL, MARKET_URL } = require('../config');
+const store = require('./store');
 
 const FALLBACK_VARIANTS = [
   'Здравствуйте! Спасибо за ваш вопрос. Мы разберёмся и ответим вам в ближайшее время.',
@@ -36,7 +37,7 @@ const PROJECT_INTROS = {
     'проекта «Колянчик».',
 };
 
-const PROJECT_KNOWLEDGE_BASE = {
+const PROJECT_KNOWLEDGE_BASE_FALLBACK = {
   mishka_max: `1. Где купить / как получить материалы (НОВЫЕ покупки):
    Есть 2 варианта:
    ✨ 1. На сайте: ${MARKET_URL}
@@ -73,6 +74,21 @@ const PROJECT_KNOWLEDGE_BASE = {
     'НЕ придумывай ссылки, цены, сроки или любые другие факты о проекте — их пока нет в базе знаний.',
 };
 
+// Knowledge base now lives in Supabase (knowledge_base table) so admins can
+// edit it through the bot without a redeploy. Falls back to the hardcoded
+// text above if the table is empty or unreachable.
+async function buildKnowledgeBaseText(project) {
+  try {
+    const entries = await store.listKnowledgeEntries(project);
+    if (entries.length > 0) {
+      return entries.map((e, i) => `${i + 1}. ${e.topic}:\n   ${e.answer}`).join('\n\n');
+    }
+  } catch (err) {
+    console.error('[ai] failed to load knowledge_base, using fallback:', err.message);
+  }
+  return PROJECT_KNOWLEDGE_BASE_FALLBACK[project] || PROJECT_KNOWLEDGE_BASE_FALLBACK.mishka_max;
+}
+
 async function callLLM(prompt) {
   const response = await axios.post(
     'https://openrouter.ai/api/v1/chat/completions',
@@ -93,7 +109,7 @@ async function generateVariants(userMessage, { topic = 'other', platform = 'unkn
   const topicLabel = TOPIC_NAMES[topic] || topic;
   const platformLabel = platform !== 'unknown' ? PLATFORM_NAMES[platform] || platform : '';
   const projectIntro = PROJECT_INTROS[project] || PROJECT_INTROS.mishka_max;
-  const knowledgeBase = PROJECT_KNOWLEDGE_BASE[project] || PROJECT_KNOWLEDGE_BASE.mishka_max;
+  const knowledgeBase = await buildKnowledgeBaseText(project);
 
   const prompt = `
 Ты — помощник службы поддержки ${projectIntro}
@@ -139,4 +155,28 @@ ${platformLabel ? `ПЛАТФОРМА: ${platformLabel}` : ''}
   }
 }
 
-module.exports = { generateVariants };
+// Polishes an operator-written draft for the knowledge base: fixes grammar,
+// punctuation and tone without changing facts, links or numbers.
+async function polishAnswer(draftText) {
+  const prompt = `
+Ты — редактор ответов службы поддержки проекта «Мишка Макс». Тон: тёплый, дружелюбный, на «вы».
+
+Ниже черновик ответа от сотрудника поддержки. Нужно:
+- Поправить грамматику, пунктуацию и стиль
+- Сделать тон тёплым и дружелюбным, если черновик суховат или резковат
+- НЕ менять факты, ссылки, цифры, названия — только форму подачи
+- НЕ добавлять информацию, которой нет в черновике
+- НЕ сокращать содержание
+
+Черновик:
+"""
+${draftText}
+"""
+
+Ответь только финальным текстом ответа — без кавычек, без пояснений, без markdown-разметки.
+`;
+  const raw = await callLLM(prompt);
+  return raw.trim().replace(/^["'«]+|["'»]+$/g, '');
+}
+
+module.exports = { generateVariants, polishAnswer };
