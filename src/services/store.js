@@ -56,6 +56,17 @@ async function getTicket(ticketId) {
   return _mapRow(data);
 }
 
+async function getTicketByNotifyMsgId(mid) {
+  if (!mid) return null;
+  const { data, error } = await supabase
+    .from('support_dialogs')
+    .select('*')
+    .eq('last_notify_msg_id', String(mid))
+    .maybeSingle();
+  if (error || !data) return null;
+  return _mapRow(data);
+}
+
 async function getOpenTicketByUserId(userId) {
   const { data, error } = await supabase
     .from('support_dialogs')
@@ -110,6 +121,7 @@ function _mapRow(row) {
     label: (row.context && row.context.label) || '🟡',
     project: (row.context && row.context.project) || 'mishka_max',
     admin_msg_id: row.admin_msg_id || null,
+    last_notify_msg_id: row.last_notify_msg_id || null,
     status: row.status,
     rating: row.rating,
     appeal_count: row.appeal_count || 1,
@@ -277,7 +289,7 @@ async function isBlocked(userId) {
 }
 
 module.exports = {
-  createTicket, getTicket, getOpenTicketByUserId, getOpenTickets, findUsersByName, updateTicket, closeTicket, addMessageToTicket,
+  createTicket, getTicket, getTicketByNotifyMsgId, getOpenTicketByUserId, getOpenTickets, findUsersByName, updateTicket, closeTicket, addMessageToTicket,
   getUserState, setUserState, resetUserState, hasSeenStart, markStartShown,
   setAdminMode, getAdminMode, clearAdminMode,
   setPause, clearPause, isPaused, getPauseUntil,

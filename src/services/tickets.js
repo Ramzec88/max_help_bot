@@ -35,9 +35,12 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
       Keyboard.button.callback('✍️ Ответить', `custom:${existing.ticket_id}`),
       Keyboard.button.callback('✅ Решён', `ticket:resolve:${existing.ticket_id}`),
     ]];
-    await ctx.api.sendMessageToChat(adminChatId, notification, {
+    const notifySentMsg = await ctx.api.sendMessageToChat(adminChatId, notification, {
       attachments: [Keyboard.inlineKeyboard(replyButton)],
     });
+    if (notifySentMsg?.body?.mid) {
+      await store.updateTicket(existing.ticket_id, { last_notify_msg_id: notifySentMsg.body.mid });
+    }
     store.setUserState(userId, 'ticket_open');
     return existing;
   }
@@ -76,7 +79,7 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
   });
 
   if (sentMsg?.body?.mid) {
-    await store.updateTicket(ticket.ticket_id, { admin_msg_id: sentMsg.body.mid });
+    await store.updateTicket(ticket.ticket_id, { admin_msg_id: sentMsg.body.mid, last_notify_msg_id: sentMsg.body.mid });
   }
 
   store.resetUserState(userId);

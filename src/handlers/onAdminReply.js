@@ -26,6 +26,16 @@ async function sendToUser(api, rawChatId, text, opts) {
 
 async function onAdminReply(ctx, adminChatId) {
   const adminId = String(ctx.user.user_id);
+
+  // Swipe-reply: MAX's native reply-to-message feature. If the admin swiped
+  // a ticket's card or notification and replied directly, resolve the
+  // ticket from that message id — no /startreply or button needed.
+  const replyLink = ctx.message?.link;
+  if (replyLink?.type === 'reply' && replyLink.message?.mid) {
+    const handled = await handleSwipeReply(ctx, adminChatId, replyLink.message.mid);
+    if (handled) return;
+  }
+
   const adminMode = await store.getAdminMode(adminId);
   if (!adminMode || adminMode.mode !== 'awaiting_reply') {
     const text = ctx.message?.body?.text || '';
@@ -94,6 +104,78 @@ async function onAdminReply(ctx, adminChatId) {
 
   // Confirm in admin chat (silent — don't close mode yet, wait for /done)
   await ctx.api.sendMessageToChat(adminChatId, `📨 Отправлено пользователю. Продолжайте или напишите /done`);
+}
+
+// Returns true if the swiped-to message belonged to a ticket and was handled
+// (sent or reported as an error) — false means "not a ticket swipe", fall
+// through to the normal /startreply-mode handling.
+async function handleSwipeReply(ctx, adminChatId, repliedMid) {
+  const ticket = await store.getTicketByNotifyMsgId(repliedMid);
+  if (!ticket) return false;
+
+  const replyText = (ctx.message?.body?.text || '').trim();
+  const mediaAttachments = extractMediaAttachments(ctx.message);
+  if (!replyText && mediaAttachments.length === 0) return false;
+
+  const alreadyClosed = ticket.status === 'answered';
+  let sentSomething = false;
+
+  try {
+    if (replyText) {
+      await sleep(DELAY_MS);
+      await sendToUser(ctx.api, ticket.chat_id, replyText);
+      sentSomething = true;
+    }
+
+    for (const att of mediaAttachments) {
+      const outgoing = toOutgoingAttachment(att);
+      if (!outgoing) {
+        console.error('skipping unforwardable attachment:', JSON.stringify(att));
+        continue;
+      }
+      await sleep(DELAY_MS);
+      await sendToUser(ctx.api, ticket.chat_id, '', { attachments: [outgoing] });
+      sentSomething = true;
+    }
+  } catch (err) {
+    console.error('swipe-reply send failed:', err.message, 'ticket:', ticket.ticket_id, 'chat_id:', ticket.chat_id);
+    const prefix = sentSomething
+      ? `⚠️ Часть сообщения не отправлена (тикет #${ticket.ticket_id})`
+      : `❌ Не удалось отправить (тикет #${ticket.ticket_id})`;
+    await ctx.api.sendMessageToChat(adminChatId, `${prefix}: ${err.message}`);
+    return true;
+  }
+
+  if (alreadyClosed) {
+    await ctx.api.sendMessageToChat(adminChatId, `📨 Отправлено по тикету #${ticket.ticket_id} (тикет уже был закрыт).`);
+    return true;
+  }
+
+  await store.updateTicket(ticket.ticket_id, { status: 'answered' });
+
+  try {
+    const { text: ratingText, buttons: ratingButtons } = formatter.buildRatingMessage(ticket.ticket_id);
+    await sendToUser(ctx.api, ticket.chat_id, ratingText, {
+      attachments: [Keyboard.inlineKeyboard(ratingButtons)],
+    });
+  } catch (err) {
+    console.error('rating message failed (non-fatal):', err.message);
+  }
+  store.setUserState(ticket.user_id, 'rating_pending');
+
+  await store.closeTicket(ticket.ticket_id);
+
+  if (ticket.admin_msg_id) {
+    try {
+      const updatedText = formatter.buildAnsweredCard(ticket, replyText || '[медиафайл]');
+      await ctx.api.editMessage(ticket.admin_msg_id, { text: updatedText, attachments: [], format: 'markdown' });
+    } catch (err) {
+      console.error('editMessage error (non-fatal):', err.message);
+    }
+  }
+
+  await ctx.api.sendMessageToChat(adminChatId, `✅ Ответ на тикет #${ticket.ticket_id} отправлен (свайп-реплай).`);
+  return true;
 }
 
 async function finishCustomReply(adminId, adminChatId, api) {
