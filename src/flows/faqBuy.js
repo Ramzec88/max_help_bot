@@ -1,11 +1,11 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const { BOOSTY_URL, LAVA_TOP_URL } = require('../config');
+const { MARKET_URL, SUBSCRIPTION_BOT_URL } = require('../config');
 
 const BUY_TEXT =
-  `🎭 Наши сценарии можно купить в двух местах:\n\n` +
-  `• [Boosty](${BOOSTY_URL})\n` +
-  `• [Lava Top](${LAVA_TOP_URL})\n\n` +
-  `Все доступные материалы собраны здесь: 👉 mishka-max.ru/me — первые две ссылки в списке\n\n` +
+  `🎭 Сценарии можно получить так:\n\n` +
+  `• На сайте: [${MARKET_URL}](${MARKET_URL})\n` +
+  `• Или в закрытом канале для педагогов — доступ оформляется в боте: [перейти](${SUBSCRIPTION_BOT_URL})\n\n` +
+  `💡 Материалы в канале обновляются не сразу — если нужного сценария там ещё нет, уточняйте наличие на сайте или здесь, у нас\n\n` +
   `Нашли что искали?`;
 
 const BUY_BUTTONS = [[
