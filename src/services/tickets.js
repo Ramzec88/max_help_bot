@@ -37,6 +37,7 @@ async function openTicket(ctx, adminChatId, { topic, platform, context, question
     ]];
     const notifySentMsg = await ctx.api.sendMessageToChat(adminChatId, notification, {
       attachments: [Keyboard.inlineKeyboard(replyButton)],
+      format: 'markdown',
     });
     if (notifySentMsg?.body?.mid) {
       await store.updateTicket(existing.ticket_id, { last_notify_msg_id: notifySentMsg.body.mid });

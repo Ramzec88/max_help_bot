@@ -72,7 +72,8 @@ async function onUserMessage(ctx, adminChatId) {
         const { buildAddMessageNotification } = require('../services/formatter');
         const notifySentMsg = await ctx.api.sendMessageToChat(
           adminChatId,
-          buildAddMessageNotification(ticket, text)
+          buildAddMessageNotification(ticket, text),
+          { format: 'markdown' }
         );
         if (notifySentMsg?.body?.mid) {
           await store.updateTicket(ticket.ticket_id, { last_notify_msg_id: notifySentMsg.body.mid });
